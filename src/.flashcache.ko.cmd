@@ -1,0 +1,1 @@
+cmd_/root/kernel/flashcache/flashcache/src/flashcache.ko := ld -r -m elf_x86_64 -T /root/kernel/linux-3.10.58/scripts/module-common.lds --build-id  -o /root/kernel/flashcache/flashcache/src/flashcache.ko /root/kernel/flashcache/flashcache/src/flashcache.o /root/kernel/flashcache/flashcache/src/flashcache.mod.o
