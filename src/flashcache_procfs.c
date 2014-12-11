@@ -8,7 +8,7 @@
  *  Based on DM-Cache:
  *   Copyright (C) International Business Machines Corp., 2006
  *   Author: Ming Zhao (mingzhao@ufl.edu)
- * 
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; under version 2 of the License.
@@ -87,7 +87,7 @@ flashcache_io_latency_init(ctl_table *table, int write,
 	if (write) {
 		if (dmc->sysctl_io_latency_hist) {
 			int i;
-				
+
 			for (i = 0 ; i < IO_LATENCY_BUCKETS ; i++)
 				dmc->latency_hist[i] = 0;
 			dmc->latency_hist_10ms = 0;
@@ -96,12 +96,12 @@ flashcache_io_latency_init(ctl_table *table, int write,
 	return 0;
 }
 
-static int 
+static int
 flashcache_sync_sysctl(ctl_table *table, int write,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32)
-		       struct file *file, 
+		       struct file *file,
 #endif
-		       void __user *buffer, 
+		       void __user *buffer,
 		       size_t *length, loff_t *ppos)
 {
 	struct cache_c *dmc = (struct cache_c *)table->extra1;
@@ -122,12 +122,12 @@ flashcache_sync_sysctl(ctl_table *table, int write,
 	return 0;
 }
 
-static int 
+static int
 flashcache_zerostats_sysctl(ctl_table *table, int write,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32)
-			    struct file *file, 
+			    struct file *file,
 #endif
-			    void __user *buffer, 
+			    void __user *buffer,
 			    size_t *length, loff_t *ppos)
 {
 	struct cache_c *dmc = (struct cache_c *)table->extra1;
@@ -150,12 +150,12 @@ flashcache_zerostats_sysctl(ctl_table *table, int write,
 	return 0;
 }
 
-static int 
+static int
 flashcache_fallow_clean_speed_sysctl(ctl_table *table, int write,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32)
-				     struct file *file, 
+				     struct file *file,
 #endif
-				     void __user *buffer, 
+				     void __user *buffer,
 				     size_t *length, loff_t *ppos)
 {
 	struct cache_c *dmc = (struct cache_c *)table->extra1;
@@ -178,9 +178,9 @@ flashcache_fallow_clean_speed_sysctl(ctl_table *table, int write,
 static int
 flashcache_dirty_thresh_sysctl(ctl_table *table, int write,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32)
-			       struct file *file, 
+			       struct file *file,
 #endif
-			       void __user *buffer, 
+			       void __user *buffer,
 			       size_t *length, loff_t *ppos)
 {
 	struct cache_c *dmc = (struct cache_c *)table->extra1;
@@ -197,7 +197,7 @@ flashcache_dirty_thresh_sysctl(ctl_table *table, int write,
 		if (dmc->sysctl_dirty_thresh < DIRTY_THRESH_MIN)
 			dmc->sysctl_dirty_thresh = DIRTY_THRESH_MIN;
 
-		dmc->dirty_thresh_set = 
+		dmc->dirty_thresh_set =
 			(dmc->assoc * dmc->sysctl_dirty_thresh) / 100;
 	}
 	return 0;
@@ -206,9 +206,9 @@ flashcache_dirty_thresh_sysctl(ctl_table *table, int write,
 static int
 flashcache_lru_hot_pct_sysctl(ctl_table *table, int write,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32)
-			       struct file *file, 
+			       struct file *file,
 #endif
-			       void __user *buffer, 
+			       void __user *buffer,
 			       size_t *length, loff_t *ppos)
 {
 	struct cache_c *dmc = (struct cache_c *)table->extra1;
@@ -232,7 +232,7 @@ flashcache_lru_hot_pct_sysctl(ctl_table *table, int write,
  * entries - zero padded at the end ! Therefore the NUM_*_SYSCTLS
  * is 1 more than then number of sysctls.
  */
-#define FLASHCACHE_NUM_WRITEBACK_SYSCTLS	22
+#define FLASHCACHE_NUM_WRITEBACK_SYSCTLS	23
 
 static struct flashcache_writeback_sysctl_table {
 	struct ctl_table_header *sysctl_header;
@@ -353,9 +353,9 @@ static struct flashcache_writeback_sysctl_table {
 			.strategy	= &sysctl_intvec,
 #endif
 		},
-#ifdef notdef
-		/* 
-		 * Disable this for all except devel builds 
+/*#ifdef notdef*/
+		/*
+		 * Disable this for all except devel builds
 		 * If you enable this, you must bump FLASHCACHE_NUM_WRITEBACK_SYSCTLS
 		 * by 1 !
 		 */
@@ -368,7 +368,7 @@ static struct flashcache_writeback_sysctl_table {
 			.mode		= 0644,
 			.proc_handler	= &proc_dointvec,
 		},
-#endif
+/*#endif*/
 		{
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)
 			.ctl_name	= CTL_UNNUMBERED,
@@ -577,8 +577,8 @@ static struct flashcache_writethrough_sysctl_table {
 #endif
 		},
 #ifdef notdef
-		/* 
-		 * Disable this for all except devel builds 
+		/*
+		 * Disable this for all except devel builds
 		 * If you enable this, you must bump FLASHCACHE_NUM_WRITEBACK_SYSCTLS
 		 * by 1 !
 		 */
@@ -676,39 +676,39 @@ flashcache_find_sysctl_data(struct cache_c *dmc, ctl_table *vars)
 		return &dmc->sysctl_do_sync;
 	else if (strcmp(vars->procname, "stop_sync") == 0)
 		return &dmc->sysctl_stop_sync;
-	else if (strcmp(vars->procname, "dirty_thresh_pct") == 0) 
+	else if (strcmp(vars->procname, "dirty_thresh_pct") == 0)
 		return &dmc->sysctl_dirty_thresh;
-	else if (strcmp(vars->procname, "max_clean_ios_total") == 0) 
+	else if (strcmp(vars->procname, "max_clean_ios_total") == 0)
 		return &dmc->max_clean_ios_total;
-	else if (strcmp(vars->procname, "max_clean_ios_set") == 0) 
+	else if (strcmp(vars->procname, "max_clean_ios_set") == 0)
 		return &dmc->max_clean_ios_set;
-	else if (strcmp(vars->procname, "do_pid_expiry") == 0) 
+	else if (strcmp(vars->procname, "do_pid_expiry") == 0)
 		return &dmc->sysctl_pid_do_expiry;
-	else if (strcmp(vars->procname, "max_pids") == 0) 
+	else if (strcmp(vars->procname, "max_pids") == 0)
 		return &dmc->sysctl_max_pids;
-	else if (strcmp(vars->procname, "pid_expiry_secs") == 0) 
+	else if (strcmp(vars->procname, "pid_expiry_secs") == 0)
 		return &dmc->sysctl_pid_expiry_secs;
-	else if (strcmp(vars->procname, "reclaim_policy") == 0) 
+	else if (strcmp(vars->procname, "reclaim_policy") == 0)
 		return &dmc->sysctl_reclaim_policy;
-	else if (strcmp(vars->procname, "zero_stats") == 0) 
+	else if (strcmp(vars->procname, "zero_stats") == 0)
 		return &dmc->sysctl_zerostats;
-	else if (strcmp(vars->procname, "error_inject") == 0) 
+	else if (strcmp(vars->procname, "error_inject") == 0)
 		return &dmc->sysctl_error_inject;
-	else if (strcmp(vars->procname, "fast_remove") == 0) 
+	else if (strcmp(vars->procname, "fast_remove") == 0)
 		return &dmc->sysctl_fast_remove;
-	else if (strcmp(vars->procname, "cache_all") == 0) 
+	else if (strcmp(vars->procname, "cache_all") == 0)
 		return &dmc->sysctl_cache_all;
-	else if (strcmp(vars->procname, "fallow_clean_speed") == 0) 
+	else if (strcmp(vars->procname, "fallow_clean_speed") == 0)
 		return &dmc->sysctl_fallow_clean_speed;
-	else if (strcmp(vars->procname, "fallow_delay") == 0) 
+	else if (strcmp(vars->procname, "fallow_delay") == 0)
 		return &dmc->sysctl_fallow_delay;
-	else if (strcmp(vars->procname, "skip_seq_thresh_kb") == 0) 
+	else if (strcmp(vars->procname, "skip_seq_thresh_kb") == 0)
 		return &dmc->sysctl_skip_seq_thresh_kb;
-	else if (strcmp(vars->procname, "clean_on_read_miss") == 0) 
+	else if (strcmp(vars->procname, "clean_on_read_miss") == 0)
 		return &dmc->sysctl_clean_on_read_miss;
-	else if (strcmp(vars->procname, "clean_on_write_miss") == 0) 
+	else if (strcmp(vars->procname, "clean_on_write_miss") == 0)
 		return &dmc->sysctl_clean_on_write_miss;
-	else if (strcmp(vars->procname, "lru_promote_thresh") == 0) 
+	else if (strcmp(vars->procname, "lru_promote_thresh") == 0)
 		return &dmc->sysctl_lru_promote_thresh;
 	else if (strcmp(vars->procname, "lru_hot_pct") == 0)
 		return &dmc->sysctl_lru_hot_pct;
@@ -724,7 +724,7 @@ flashcache_writeback_sysctl_register(struct cache_c *dmc)
 {
 	int i;
 	struct flashcache_writeback_sysctl_table *t;
-	
+
 	t = kmemdup(&flashcache_writeback_sysctl, sizeof(*t), GFP_KERNEL);
 	if (t == NULL)
 		return;
@@ -735,7 +735,7 @@ flashcache_writeback_sysctl_register(struct cache_c *dmc)
 		t->vars[i].data = flashcache_find_sysctl_data(dmc, &t->vars[i]);
 		t->vars[i].extra1 = dmc;
 	}
-	
+
 	t->dev[0].procname = flashcache_cons_sysctl_devname(dmc);
 	t->dev[0].child = t->vars;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)
@@ -749,7 +749,7 @@ flashcache_writeback_sysctl_register(struct cache_c *dmc)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)
 	t->root[0].de = NULL;
 #endif
-	
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)
 	t->sysctl_header = register_sysctl_table(t->root, 0);
 #else
@@ -757,7 +757,7 @@ flashcache_writeback_sysctl_register(struct cache_c *dmc)
 #endif
 	if (t->sysctl_header == NULL)
 		goto out;
-	
+
 	dmc->sysctl_handle = t;
 	return;
 
@@ -776,7 +776,7 @@ flashcache_writeback_sysctl_unregister(struct cache_c *dmc)
 		dmc->sysctl_handle = NULL;
 		unregister_sysctl_table(t->sysctl_header);
 		kfree(t->dev[0].procname);
-		kfree(t);		
+		kfree(t);
 	}
 }
 
@@ -785,7 +785,7 @@ flashcache_writethrough_sysctl_register(struct cache_c *dmc)
 {
 	int i;
 	struct flashcache_writethrough_sysctl_table *t;
-	
+
 	t = kmemdup(&flashcache_writethrough_sysctl, sizeof(*t), GFP_KERNEL);
 	if (t == NULL)
 		return;
@@ -796,7 +796,7 @@ flashcache_writethrough_sysctl_register(struct cache_c *dmc)
 		t->vars[i].data = flashcache_find_sysctl_data(dmc, &t->vars[i]);
 		t->vars[i].extra1 = dmc;
 	}
-	
+
 	t->dev[0].procname = flashcache_cons_sysctl_devname(dmc);
 	t->dev[0].child = t->vars;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)
@@ -818,7 +818,7 @@ flashcache_writethrough_sysctl_register(struct cache_c *dmc)
 #endif
 	if (t->sysctl_header == NULL)
 		goto out;
-	
+
 	dmc->sysctl_handle = t;
 	return;
 
@@ -837,12 +837,12 @@ flashcache_writethrough_sysctl_unregister(struct cache_c *dmc)
 		dmc->sysctl_handle = NULL;
 		unregister_sysctl_table(t->sysctl_header);
 		kfree(t->dev[0].procname);
-		kfree(t);		
+		kfree(t);
 	}
 }
 
 
-static int 
+static int
 flashcache_stats_show(struct seq_file *seq, void *v)
 {
 	struct cache_c *dmc = seq->private;
@@ -861,12 +861,12 @@ flashcache_stats_show(struct seq_file *seq, void *v)
 		write_hit_pct = 0;
 		dirty_write_hit_pct = 0;
 	}
-	seq_printf(seq, "reads=%lu writes=%lu \n", 
+	seq_printf(seq, "reads=%lu writes=%lu \n",
 		   stats->reads, stats->writes);
-	seq_printf(seq, "read_hits=%lu read_hit_percent=%d ", 
+	seq_printf(seq, "read_hits=%lu read_hit_percent=%d ",
 		   stats->read_hits, read_hit_pct);
 	if (dmc->cache_mode == FLASHCACHE_WRITE_BACK || dmc->cache_mode == FLASHCACHE_WRITE_THROUGH) {
-		seq_printf(seq, "write_hits=%lu write_hit_percent=%d ", 
+		seq_printf(seq, "write_hits=%lu write_hit_percent=%d ",
 		   	   stats->write_hits, write_hit_pct);
 	}
 	if (dmc->cache_mode == FLASHCACHE_WRITE_BACK) {
@@ -891,7 +891,7 @@ flashcache_stats_show(struct seq_file *seq, void *v)
 	seq_printf(seq,  "pending_enqueues=%lu pending_inval=%lu ",
 		   stats->enqueues, stats->pending_inval);
 
-	if (dmc->cache_mode == FLASHCACHE_WRITE_BACK) { 
+	if (dmc->cache_mode == FLASHCACHE_WRITE_BACK) {
 		seq_printf(seq, "metadata_dirties=%lu metadata_cleans=%lu ",
 			   stats->md_write_dirty, stats->md_write_clean);
 		seq_printf(seq, "metadata_batch=%lu metadata_ssd_writes=%lu ",
@@ -917,11 +917,11 @@ flashcache_stats_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int 
+static int
 flashcache_stats_open(struct inode *inode, struct file *file)
 {
 	#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
-		return single_open(file, &flashcache_stats_show, PDE(inode)->data);	
+		return single_open(file, &flashcache_stats_show, PDE(inode)->data);
 	#endif
 	#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
 		return single_open(file, &flashcache_stats_show, PDE_DATA(inode));
@@ -935,27 +935,27 @@ static struct file_operations flashcache_stats_operations = {
 	.release	= single_release,
 };
 
-static int 
+static int
 flashcache_errors_show(struct seq_file *seq, void *v)
 {
 	struct cache_c *dmc = seq->private;
 
 	seq_printf(seq, "disk_read_errors=%d disk_write_errors=%d ",
-		   dmc->flashcache_errors.disk_read_errors, 
+		   dmc->flashcache_errors.disk_read_errors,
 		   dmc->flashcache_errors.disk_write_errors);
 	seq_printf(seq, "ssd_read_errors=%d ssd_write_errors=%d ",
-		   dmc->flashcache_errors.ssd_read_errors, 
+		   dmc->flashcache_errors.ssd_read_errors,
 		   dmc->flashcache_errors.ssd_write_errors);
-	seq_printf(seq, "memory_alloc_errors=%d\n", 
+	seq_printf(seq, "memory_alloc_errors=%d\n",
 		   dmc->flashcache_errors.memory_alloc_errors);
 	return 0;
 }
 
-static int 
+static int
 flashcache_errors_open(struct inode *inode, struct file *file)
 {
 	#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
-		return single_open(file, &flashcache_errors_show, PDE(inode)->data);	
+		return single_open(file, &flashcache_errors_show, PDE(inode)->data);
 	#endif
 	#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
 		return single_open(file, &flashcache_errors_show, PDE_DATA(inode));
@@ -969,11 +969,11 @@ static struct file_operations flashcache_errors_operations = {
 	.release	= single_release,
 };
 
-static int 
+static int
 flashcache_iosize_hist_show(struct seq_file *seq, void *v)
 {
 	int i;
-	
+
 	for (i = 1 ; i <= 32 ; i++) {
 		seq_printf(seq, "%d:%llu ", i*512, size_hist[i]);
 	}
@@ -981,7 +981,7 @@ flashcache_iosize_hist_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int 
+static int
 flashcache_iosize_hist_open(struct inode *inode, struct file *file)
 {
 	#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
@@ -999,7 +999,7 @@ static struct file_operations flashcache_iosize_hist_operations = {
 	.release	= single_release,
 };
 
-static int 
+static int
 flashcache_pidlists_show(struct seq_file *seq, void *v)
 {
 	struct cache_c *dmc = seq->private;
@@ -1025,11 +1025,11 @@ flashcache_pidlists_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int 
+static int
 flashcache_pidlists_open(struct inode *inode, struct file *file)
 {
 	#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
-		return single_open(file, &flashcache_pidlists_show, PDE(inode)->data);	
+		return single_open(file, &flashcache_pidlists_show, PDE(inode)->data);
 	#endif
 	#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
 		return single_open(file, &flashcache_pidlists_show, PDE_DATA(inode));
@@ -1045,7 +1045,7 @@ static struct file_operations flashcache_pidlists_operations = {
 
 extern char *flashcache_sw_version;
 
-static int 
+static int
 flashcache_version_show(struct seq_file *seq, void *v)
 {
 	seq_printf(seq, "Flashcache Version : %s\n", flashcache_sw_version);
@@ -1055,11 +1055,11 @@ flashcache_version_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int 
+static int
 flashcache_version_open(struct inode *inode, struct file *file)
 {
 	#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
-		return single_open(file, &flashcache_version_show, PDE(inode)->data);	
+		return single_open(file, &flashcache_version_show, PDE(inode)->data);
 	#endif
 	#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
 		return single_open(file, &flashcache_version_show, PDE_DATA(inode));
@@ -1087,7 +1087,7 @@ flashcache_module_procfs_init(void)
 		#endif
 		#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
 			entry = proc_create("flashcache/flashcache_version", 0, NULL, &flashcache_version_operations);
-		#endif	
+		#endif
 
 	}
 #endif /* CONFIG_PROC_FS */
@@ -1106,7 +1106,7 @@ static char *
 flashcache_cons_sysctl_devname(struct cache_c *dmc)
 {
 	char *pathname;
-	
+
 	pathname = kzalloc(strlen(dmc->cache_devname) + strlen(dmc->disk_devname) + 2,
 			   GFP_KERNEL);
 	strcpy(pathname, strrchr(dmc->cache_devname, '/') + 1);
@@ -1120,22 +1120,22 @@ flashcache_cons_procfs_cachename(struct cache_c *dmc, char *path_component)
 {
 	char *pathname;
 	char *s;
-	
-	pathname = kzalloc(strlen(dmc->cache_devname) + strlen(dmc->disk_devname) + 4 + 
-			   strlen(FLASHCACHE_PROC_ROOTDIR_NAME) + 
-			   strlen(path_component), 
+
+	pathname = kzalloc(strlen(dmc->cache_devname) + strlen(dmc->disk_devname) + 4 +
+			   strlen(FLASHCACHE_PROC_ROOTDIR_NAME) +
+			   strlen(path_component),
 			   GFP_KERNEL);
 	strcpy(pathname, FLASHCACHE_PROC_ROOTDIR_NAME);
 	strcat(pathname, "/");
 	s = strrchr(dmc->cache_devname, '/');
-	if (s) 
+	if (s)
 		s++;
 	else
 		s = dmc->cache_devname;
 	strcat(pathname, s);
 	strcat(pathname, "+");
 	s = strrchr(dmc->disk_devname, '/');
-	if (s) 
+	if (s)
 		s++;
 	else
 		s = dmc->disk_devname;
@@ -1147,7 +1147,7 @@ flashcache_cons_procfs_cachename(struct cache_c *dmc, char *path_component)
 	return pathname;
 }
 
-void 
+void
 flashcache_ctr_procfs(struct cache_c *dmc)
 {
 	char *s;
@@ -1203,7 +1203,7 @@ flashcache_ctr_procfs(struct cache_c *dmc)
 		entry = create_proc_entry(s, 0, NULL);
 		if (entry) {
 			entry->proc_fops =  &flashcache_pidlists_operations;
-			entry->data = dmc;			
+			entry->data = dmc;
 		}
 	#endif
 	#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
@@ -1217,11 +1217,11 @@ flashcache_ctr_procfs(struct cache_c *dmc)
 		flashcache_writethrough_sysctl_register(dmc);
 }
 
-void 
+void
 flashcache_dtr_procfs(struct cache_c *dmc)
 {
 	char *s;
-	
+
 	s = flashcache_cons_procfs_cachename(dmc, "flashcache_stats");
 	remove_proc_entry(s, NULL);
 	kfree(s);
