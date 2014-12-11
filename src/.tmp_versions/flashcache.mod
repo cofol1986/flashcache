@@ -1,2 +1,0 @@
-/root/kernel/flashcache/flashcache/src/flashcache.ko
-/root/kernel/flashcache/flashcache/src/flashcache_conf.o /root/kernel/flashcache/flashcache/src/flashcache_main.o /root/kernel/flashcache/flashcache/src/flashcache_subr.o /root/kernel/flashcache/flashcache/src/flashcache_ioctl.o /root/kernel/flashcache/flashcache/src/flashcache_procfs.o /root/kernel/flashcache/flashcache/src/flashcache_reclaim.o
