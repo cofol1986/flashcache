@@ -8,7 +8,7 @@
  *  Based on DM-Cache:
  *   Copyright (C) International Business Machines Corp., 2006
  *   Author: Ming Zhao (mingzhao@ufl.edu)
- * 
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; under version 2 of the License.
@@ -77,13 +77,13 @@ are held for short sections.
 struct cache_c : ioctl_lock
 struct cache_c : cache_pending_q_spinlock
 
-Lock Ordering. set_spin_lock must be acquired before any of the other 
+Lock Ordering. set_spin_lock must be acquired before any of the other
 locks.
 
-set_spin_lock	
+set_spin_lock
 (Acquired in increasing order of sets !
 If you must acquire 2 set_spin_locks, acquire the lock on set i before
-set i+1. Acquiring locks on multiple sets should be done using 
+set i+1. Acquiring locks on multiple sets should be done using
 flashcache_setlocks_multiget/drop).
 	md_block_lock
 	ioctl_lock
@@ -91,17 +91,17 @@ flashcache_setlocks_multiget/drop).
 
 Important Locking Note :
 ----------------------
-softirq into flashcache (IO completion path) acquires the cache set lock. 
-Therefore *any* * (process context) codepath that acquires any other 
+softirq into flashcache (IO completion path) acquires the cache set lock.
+Therefore *any* * (process context) codepath that acquires any other
 spinlock after acquiring the cache set spinlock *must* disable irq's.
 Else, we get an irq holding the cache set lock -> other spinlock and
 we deadlock on the cache set lock.
 
 These locks are all acquired *after* acquiring the cache set spinlocks,
-which means *EVERY* acquisition of these locks must disable irq's to 
+which means *EVERY* acquisition of these locks must disable irq's to
 address the above race !
 
-Every acquisition of 
+Every acquisition of
 	md_block_lock
 	ioctl_lock
 	cache_pending_q_spinlock
@@ -111,20 +111,20 @@ MUST DISABLE IRQs.
 
 /*
  * Block checksums :
- * Block checksums seem a good idea (especially for debugging, I found a couple 
+ * Block checksums seem a good idea (especially for debugging, I found a couple
  * of bugs with this), but in practice there are a number of issues with this
  * in production.
  * 1) If a flash write fails, there is no guarantee that the failure was atomic.
  * Some sectors may have been written to flash. If so, the checksum we have
  * is wrong. We could re-read the flash block and recompute the checksum, but
- * the read could fail too. 
+ * the read could fail too.
  * 2) On a node crash, we could have crashed between the flash data write and the
  * flash metadata update (which updates the new checksum to flash metadata). When
  * we reboot, the checksum we read from metadata is wrong. This is worked around
  * by having the cache load recompute checksums after an unclean shutdown.
  * 3) Checksums require 4 or 8 more bytes per block in terms of metadata overhead.
  * Especially because the metadata is wired into memory.
- * 4) Checksums force us to do a flash metadata IO on a block re-dirty. If we 
+ * 4) Checksums force us to do a flash metadata IO on a block re-dirty. If we
  * didn't maintain checksums, we could avoid the metadata IO on a re-dirty.
  * Therefore in production we disable block checksums.
  */
@@ -152,11 +152,11 @@ MUST DISABLE IRQs.
 
 #define FLASHCACHE_FIFO		0
 #define FLASHCACHE_LRU		1
-
+#define FLASHCACHE_ERROR_THRESH 10000
 /*
- * The LRU pointers are maintained as set-relative offsets, instead of 
+ * The LRU pointers are maintained as set-relative offsets, instead of
  * pointers. This enables us to store the LRU pointers per cacheblock
- * using 4 bytes instead of 16 bytes. The upshot of this is that we 
+ * using 4 bytes instead of 16 bytes. The upshot of this is that we
  * are required to clamp the associativity at an 8K max.
  */
 #define FLASHCACHE_MIN_ASSOC	 256
@@ -249,7 +249,7 @@ struct diskclean_buf_ {
 	struct diskclean_buf_ *next;
 };
 
-/* 
+/*
  * Sequential block history structure - each one
  * records a 'flow' of i/o.
  */
@@ -261,23 +261,23 @@ struct sequential_io {
 };
 #define SKIP_SEQUENTIAL_THRESHOLD 0			/* 0 = cache all, >0 = dont cache sequential i/o more than this (kb) */
 #define SEQUENTIAL_TRACKER_QUEUE_DEPTH	32		/* How many io 'flows' to track (random i/o will hog many).
-							 * This should be large enough so that we don't quickly 
+							 * This should be large enough so that we don't quickly
 							 * evict sequential i/o when we see some random,
 							 * but small enough that searching through it isn't slow
 							 * (currently we do linear search, we could consider hashed */
-								
-	
+
+
 /*
  * Cache context
  */
 struct cache_c {
 	struct dm_target	*tgt;
-	
+
 	struct dm_dev 		*disk_dev;   /* Source device */
 	struct dm_dev 		*cache_dev; /* Cache device */
 
 	int 			on_ssd_version;
-	
+
 	struct cacheblock	*cache;	/* Hash table for cache blocks */
 	struct cache_set	*cache_sets;
 	struct cache_md_block_head *md_blocks_buf;
@@ -301,7 +301,7 @@ struct cache_c {
 	   is OK since the filesystem is unmounted at this point */
 	atomic_t nr_jobs;		/* Number of I/O jobs */
 
-#define SLOW_REMOVE    1                                                                                    
+#define SLOW_REMOVE    1
 #define FAST_REMOVE    2
 	atomic_t remove_in_prog;
 
@@ -326,7 +326,7 @@ struct cache_c {
 #define IO_LATENCY_BUCKETS	(IO_LATENCY_MAX_US_TRACK / IO_LATENCY_GRAN_USECS)
 	unsigned long	latency_hist[IO_LATENCY_BUCKETS];
 	unsigned long	latency_hist_10ms;
-	
+
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 	struct work_struct delayed_clean;
@@ -363,9 +363,9 @@ struct cache_c {
 	char cache_devname[DEV_PATHLEN];
 	char disk_devname[DEV_PATHLEN];
 
-	/* 
-	 * If the SSD returns errors, in WRITETHRU and WRITEAROUND modes, 
-	 * bypass the cache completely. If the SSD dies or is removed, 
+	/*
+	 * If the SSD returns errors, in WRITETHRU and WRITEAROUND modes,
+	 * bypass the cache completely. If the SSD dies or is removed,
 	 * we want to continue sending requests to the device.
 	 */
 	int bypass_cache;
@@ -431,7 +431,7 @@ struct kcached_job {
 
 struct pending_job {
 	struct bio *bio;
-	int	action;	
+	int	action;
 	int	index;
 	struct pending_job *prev, *next;
 };
@@ -455,12 +455,12 @@ enum {
 /*
  * Old and Dirty blocks are cleaned with a Clock like algorithm. The leading hand
  * marks DIRTY_FALLOW_1. 900 seconds (default) later, the trailing hand comes along and
- * marks DIRTY_FALLOW_2 if DIRTY_FALLOW_1 is already set. If the block was used in the 
- * interim, (DIRTY_FALLOW_1|DIRTY_FALLOW_2) is cleared. Any block that has both 
- * DIRTY_FALLOW_1 and DIRTY_FALLOW_2 marked is considered old and is eligible 
+ * marks DIRTY_FALLOW_2 if DIRTY_FALLOW_1 is already set. If the block was used in the
+ * interim, (DIRTY_FALLOW_1|DIRTY_FALLOW_2) is cleared. Any block that has both
+ * DIRTY_FALLOW_1 and DIRTY_FALLOW_2 marked is considered old and is eligible
  * for cleaning.
  */
-#define DIRTY_FALLOW_1		0x0080	
+#define DIRTY_FALLOW_1		0x0080
 #define DIRTY_FALLOW_2		0x0100
 
 #define FALLOW_DOCLEAN		(DIRTY_FALLOW_1 | DIRTY_FALLOW_2)
@@ -509,23 +509,23 @@ struct flash_superblock {
 	u_int32_t disk_assoc;
 };
 
-/* 
+/*
  * We do metadata updates only when a block trasitions from DIRTY -> CLEAN
  * or from CLEAN -> DIRTY. Consequently, on an unclean shutdown, we only
  * pick up blocks that are marked (DIRTY | CLEAN), we clean these and stick
  * them in the cache.
  * On a clean shutdown, we will sync the state for every block, and we will
  * load every block back into cache on a restart.
- * 
- * Note: When using larger flashcache metadata blocks, it is important to make 
+ *
+ * Note: When using larger flashcache metadata blocks, it is important to make
  * sure that a flash_cacheblock does not straddle 2 sectors. This avoids
  * partial writes of a metadata slot on a powerfail/node crash. Aligning this
  * a 16b or 32b struct avoids that issue.
- * 
+ *
  * Note: If a on-ssd flash_cacheblock does not fit exactly within a 512b sector,
  * (ie. if there are any remainder runt bytes), logic in flashcache_conf.c which
  * reads and writes flashcache metadata on create/load/remove will break.
- * 
+ *
  * If changing these, make sure they remain a ^2 size !
  */
 #ifdef FLASHCACHE_DO_CHECKSUMS
@@ -560,10 +560,10 @@ struct flash_cacheblock {
 #define CACHE_CREATE		2
 #define CACHE_FORCECREATE	3
 
-/* 
+/*
  * We have one of these for *every* cache metadata sector, to keep track
  * of metadata ios in progress for blocks covered in this sector. Only
- * one metadata IO per sector can be in progress at any given point in 
+ * one metadata IO per sector can be in progress at any given point in
  * time
  */
 struct cache_md_block_head {
@@ -682,15 +682,15 @@ void flashcache_reclaim_lru_get_old_block(struct cache_c *dmc, int start_index, 
 void flashcache_reclaim_init_lru_lists(struct cache_c *dmc);
 void flashcache_lru_accessed(struct cache_c *dmc, int index);
 void flashcache_reclaim_rebalance_lru(struct cache_c *dmc, int new_lru_hot_pct);
-void flashcache_merge_writes(struct cache_c *dmc, 
-			     struct dbn_index_pair *writes_list, 
+void flashcache_merge_writes(struct cache_c *dmc,
+			     struct dbn_index_pair *writes_list,
 			     struct dbn_index_pair *set_dirty_list,
 			     int *nr_writes, int set);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
-int flashcache_dm_io_sync_vm(struct cache_c *dmc, struct io_region *where, 
+int flashcache_dm_io_sync_vm(struct cache_c *dmc, struct io_region *where,
 			     int rw, void *data);
 #else
-int flashcache_dm_io_sync_vm(struct cache_c *dmc, struct dm_io_region *where, 
+int flashcache_dm_io_sync_vm(struct cache_c *dmc, struct dm_io_region *where,
 			     int rw, void *data);
 #endif
 void flashcache_update_sync_progress(struct cache_c *dmc);
@@ -699,22 +699,22 @@ void flashcache_enq_pending(struct cache_c *dmc, struct bio* bio,
 struct pending_job *flashcache_deq_pending(struct cache_c *dmc, int index);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
-int dm_io_async_bvec(unsigned int num_regions, 
+int dm_io_async_bvec(unsigned int num_regions,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
-		     struct dm_io_region *where, 
+		     struct dm_io_region *where,
 #else
-		     struct io_region *where, 
+		     struct io_region *where,
 #endif
-		     int rw, 
+		     int rw,
 		     struct bio *bio,
-		     io_notify_fn fn, 
+		     io_notify_fn fn,
 		     void *context);
 #endif
 
 void flashcache_detect_fallow(struct cache_c *dmc, int index);
 void flashcache_clear_fallow(struct cache_c *dmc, int index);
 
-void flashcache_bio_endio(struct bio *bio, int error, 
+void flashcache_bio_endio(struct bio *bio, int error,
 			  struct cache_c *dmc, struct timeval *io_start_time);
 
 /* procfs */
@@ -736,9 +736,9 @@ int flashcache_invalid_get(struct cache_c *dmc, int set);
 
 int flashcache_diskclean_init(struct cache_c *dmc);
 void flashcache_diskclean_destroy(struct cache_c *dmc);
-int flashcache_diskclean_alloc(struct cache_c *dmc, 
+int flashcache_diskclean_alloc(struct cache_c *dmc,
 			       struct dbn_index_pair **buf1, struct dbn_index_pair **buf2);
-void flashcache_diskclean_free(struct cache_c *dmc, struct dbn_index_pair *buf1, 
+void flashcache_diskclean_free(struct cache_c *dmc, struct dbn_index_pair *buf1,
 			       struct dbn_index_pair *buf2);
 
 #endif /* __KERNEL__ */

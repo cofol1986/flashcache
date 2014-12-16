@@ -8,7 +8,7 @@
  *  Based on DM-Cache:
  *   Copyright (C) International Business Machines Corp., 2006
  *   Author: Ming Zhao (mingzhao@ufl.edu)
- * 
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; under version 2 of the License.
@@ -71,7 +71,7 @@
  * 2) Breaking up the cache spinlock : Right now contention on the spinlock
  * is not a problem. Might need change in future.
  * 3) Use the standard linked list manipulation macros instead rolling our own.
- * 4) Fix a security hole : A malicious process with 'ro' access to a file can 
+ * 4) Fix a security hole : A malicious process with 'ro' access to a file can
  * potentially corrupt file data. This can be fixed by copying the data on a
  * cache read miss.
  */
@@ -103,15 +103,15 @@ extern struct kcopyd_client *flashcache_kcp_client; /* Kcopyd client for writing
 extern struct dm_io_client *flashcache_io_client; /* Client memory pool*/
 #endif
 
-int dm_io_async_bvec_pl(unsigned int num_regions, 
+int dm_io_async_bvec_pl(unsigned int num_regions,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
-			struct dm_io_region *where, 
+			struct dm_io_region *where,
 #else
-			struct io_region *where, 
+			struct io_region *where,
 #endif
-			int rw, 
-			struct page_list *pl, 
-			io_notify_fn fn, 
+			int rw,
+			struct page_list *pl,
+			io_notify_fn fn,
 			void *context)
 {
 	struct dm_io_request iorq;
@@ -127,15 +127,15 @@ int dm_io_async_bvec_pl(unsigned int num_regions,
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
-int dm_io_async_bvec(unsigned int num_regions, 
+int dm_io_async_bvec(unsigned int num_regions,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
-		     struct dm_io_region *where, 
+		     struct dm_io_region *where,
 #else
-		     struct io_region *where, 
+		     struct io_region *where,
 #endif
-		     int rw, 
-		     struct bio *bio, 
-		     io_notify_fn fn, 
+		     int rw,
+		     struct bio *bio,
+		     io_notify_fn fn,
 		     void *context)
 {
 	struct dm_io_request iorq;
@@ -143,7 +143,7 @@ int dm_io_async_bvec(unsigned int num_regions,
 	iorq.bi_rw = rw;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0)
 	iorq.mem.type = DM_IO_BIO;
-	iorq.mem.ptr.bio = bio;	
+	iorq.mem.ptr.bio = bio;
 #else
 	iorq.mem.type = DM_IO_BVEC;
 	iorq.mem.ptr.bvec = bio->bi_io_vec + bio->bi_idx;
@@ -155,18 +155,18 @@ int dm_io_async_bvec(unsigned int num_regions,
 }
 #endif
 
-/* 
- * A simple 2-hand clock like algorithm is used to identify dirty blocks 
- * that lie fallow in the cache and thus are candidates for cleaning. 
- * Note that we could have such fallow blocks in sets where the dirty blocks 
+/*
+ * A simple 2-hand clock like algorithm is used to identify dirty blocks
+ * that lie fallow in the cache and thus are candidates for cleaning.
+ * Note that we could have such fallow blocks in sets where the dirty blocks
  * is under the configured threshold.
- * The hands are spaced fallow_delay seconds apart (one sweep runs every 
- * fallow_delay seconds).  The interval is configurable via a sysctl. 
+ * The hands are spaced fallow_delay seconds apart (one sweep runs every
+ * fallow_delay seconds).  The interval is configurable via a sysctl.
  * Blocks are moved to DIRTY_FALLOW_1, if they are found to be in DIRTY_FALLOW_1
- * for fallow_delay seconds or more, they are moved to DIRTY_FALLOW_1 | DIRTY_FALLOW_2, 
+ * for fallow_delay seconds or more, they are moved to DIRTY_FALLOW_1 | DIRTY_FALLOW_2,
  * at which point they are eligible for cleaning. Of course any intervening use
  * of the block within the interval turns off these 2 bits.
- * 
+ *
  * Cleaning of these blocks happens from the flashcache_clean_set() function.
  */
 void
@@ -192,7 +192,7 @@ flashcache_clear_fallow(struct cache_c *dmc, int index)
 {
 	struct cacheblock *cacheblk = &dmc->cache[index];
 	int set = index / dmc->assoc;
-	
+
 	if (dmc->cache_mode != FLASHCACHE_WRITE_BACK)
 		return;
 	if (cacheblk->cache_state & FALLOW_DOCLEAN) {
@@ -204,7 +204,14 @@ flashcache_clear_fallow(struct cache_c *dmc, int index)
 	}
 }
 
-void 
+bool flashcache_should_supress_dmerr(struct cache_c *dmc)
+{
+    return (dmc->flashcache_errors.disk_read_errors +
+        dmc->flashcache_errors.disk_write_errors +
+        dmc->flashcache_errors.ssd_read_errors +
+        dmc->flashcache_errors.ssd_write_errors ) > FLASHCACHE_ERROR_THRESH;
+}
+void
 flashcache_io_callback(unsigned long error, void *context)
 {
 	struct kcached_job *job = (struct kcached_job *) context;
@@ -216,13 +223,14 @@ flashcache_io_callback(unsigned long error, void *context)
 	unsigned long disk_error = 0;
 	struct cache_set *cache_set = &dmc->cache_sets[index / dmc->assoc];
 
-	VERIFY(index != -1);		
+	VERIFY(index != -1);
 	bio = job->bio;
 	VERIFY(bio != NULL);
 	if (unlikely(error)) {
 		error = -EIO;
-		DMERR("flashcache_io_callback: io error %ld block %lu action %d", 
-		      error, job->job_io_regions.disk.sector, job->action);
+        if(!flashcache_should_supress_dmerr(dmc))
+            DMERR("flashcache_io_callback: io error %ld block %lu action %d",
+                  error, job->job_io_regions.disk.sector, job->action);
 		if (!dmc->bypass_cache && dmc->cache_mode != FLASHCACHE_WRITE_BACK) {
 			DMERR("flashcache_io_callback: switching %s to BYPASS mode",
 			      dmc->cache_devname);
@@ -249,7 +257,7 @@ flashcache_io_callback(unsigned long error, void *context)
 			return;
 		} else {
 			disk_error = -EIO;
-			dmc->flashcache_errors.disk_read_errors++;			
+			dmc->flashcache_errors.disk_read_errors++;
 		}
 		break;
 	case READCACHE:
@@ -267,13 +275,13 @@ flashcache_io_callback(unsigned long error, void *context)
 #ifdef FLASHCACHE_DO_CHECKSUMS
 		if (likely(error == 0)) {
 			if (flashcache_validate_checksum(job)) {
-				DMERR("flashcache_io_callback: Checksum mismatch at disk offset %lu", 
+				DMERR("flashcache_io_callback: Checksum mismatch at disk offset %lu",
 				      job->job_io_regions.disk.sector);
 				error = -EIO;
 			}
 		}
 #endif
-		break;		       
+		break;
 	case READFILL:
 		DPRINTK("flashcache_io_callback: READFILL %d",
 			index);
@@ -302,8 +310,8 @@ flashcache_io_callback(unsigned long error, void *context)
 #ifdef FLASHCACHE_DO_CHECKSUMS
 				dmc->flashcache_stats.checksum_store++;
 				flashcache_store_checksum(job);
-				/* 
-				 * We need to update the metadata on a DIRTY->DIRTY as well 
+				/*
+				 * We need to update the metadata on a DIRTY->DIRTY as well
 				 * since we save the checksums.
 				 */
 				flashcache_md_write(job);
@@ -326,7 +334,7 @@ flashcache_io_callback(unsigned long error, void *context)
 		} else {
 			dmc->flashcache_errors.ssd_write_errors++;
 			if (dmc->cache_mode == FLASHCACHE_WRITE_THROUGH)
-				/* 
+				/*
 				 * We don't know if the IO failed because of a ssd write
 				 * error or a disk write error. Bump up both.
 				 * XXX - TO DO. We could check the error bits and allow
@@ -346,17 +354,17 @@ flashcache_io_callback(unsigned long error, void *context)
          * work. (a) we cannot fall back to disk when a ssd read of a dirty
          * cacheblock fails (b) we'd need to handle ssd metadata write
 	 * failures as well and fall back to disk in those cases as well.
-	 * 
-	 * We track disk errors separately. If we get a disk error (in 
+	 *
+	 * We track disk errors separately. If we get a disk error (in
 	 * writethru or writearound modes) end the IO right here.
          */
-	if (likely(error == 0) || 
+	if (likely(error == 0) ||
 	    (dmc->cache_mode == FLASHCACHE_WRITE_BACK) ||
 	    disk_error != 0) {
 		flashcache_bio_endio(bio, error, dmc, &job->io_start_time);
 		job->bio = NULL;
 	}
-	/* 
+	/*
 	 * The INPROG flag is still set. We cannot turn that off until all the pending requests
 	 * processed. We need to loop the pending requests back to a workqueue. We have the job,
 	 * add it to the pending req queue.
@@ -376,7 +384,7 @@ flashcache_io_callback(unsigned long error, void *context)
 }
 
 static void
-flashcache_free_pending_jobs(struct cache_c *dmc, struct cacheblock *cacheblk, 
+flashcache_free_pending_jobs(struct cache_c *dmc, struct cacheblock *cacheblk,
 			     int error)
 {
 	struct pending_job *pending_job, *freelist = NULL;
@@ -396,11 +404,11 @@ flashcache_free_pending_jobs(struct cache_c *dmc, struct cacheblock *cacheblk,
 	VERIFY(cacheblk->nr_queued == 0);
 }
 
-/* 
+/*
  * Common error handling for everything.
  * 1) If the block isn't dirty, invalidate it.
  * 2) De-link all pending IOs that totally or partly overlap this block.
- * 3) If it was an SSD error (bio != NULL), issue the invalidated block IO and other de-linked pending IOs uncached to disk. 
+ * 3) If it was an SSD error (bio != NULL), issue the invalidated block IO and other de-linked pending IOs uncached to disk.
  * 4) Free the job.
  */
 static void
@@ -413,8 +421,8 @@ flashcache_do_pending_error(struct kcached_job *job)
 	struct pending_job *pjob_list = NULL, *pjob = NULL;
 	struct cache_set *cache_set = &dmc->cache_sets[job->index / dmc->assoc];
 
-	if (!dmc->bypass_cache) {
-		DMERR("flashcache_do_pending_error: error %d block %lu action %d", 
+	if (!dmc->bypass_cache && !flashcache_should_supress_dmerr(dmc)) {
+		DMERR("flashcache_do_pending_error: error %d block %lu action %d",
 		      job->error, job->job_io_regions.disk.sector, job->action);
 	}
 	spin_lock_irq(&cache_set->set_spin_lock);
@@ -433,7 +441,7 @@ flashcache_do_pending_error(struct kcached_job *job)
 		flashcache_invalid_insert(dmc, job->index);
 	/*
 	 * In case of an error in writethrough or writearound modes, if there
-	 * are pending jobs, de-link them from the cacheblock so we can issue disk 
+	 * are pending jobs, de-link them from the cacheblock so we can issue disk
 	 * IOs below.
 	 */
 	if (bio != NULL) {
@@ -562,7 +570,7 @@ flashcache_do_io(struct kcached_job *job)
 {
 	struct bio *bio = job->bio;
 	int r = 0;
-	
+
 	VERIFY(job->action == READFILL);
 	VERIFY(job->action == READFILL);
 #ifdef FLASHCACHE_DO_CHECKSUMS
@@ -580,7 +588,7 @@ flashcache_do_io(struct kcached_job *job)
 /*
  * Map a block from the source device to a block in the cache device.
  */
-static unsigned long 
+static unsigned long
 hash_block(struct cache_c *dmc, sector_t dbn)
 {
 	unsigned long set_number, value;
@@ -608,7 +616,7 @@ hash_block(struct cache_c *dmc, sector_t dbn)
 }
 
 static void
-find_valid_dbn(struct cache_c *dmc, sector_t dbn, 
+find_valid_dbn(struct cache_c *dmc, sector_t dbn,
 	       int start_index, int *index)
 {
 	*index = flashcache_hash_lookup(dmc, start_index / dmc->assoc, dbn);
@@ -617,8 +625,8 @@ find_valid_dbn(struct cache_c *dmc, sector_t dbn,
 	if (dmc->sysctl_reclaim_policy == FLASHCACHE_LRU &&
 	    ((dmc->cache[*index].cache_state & BLOCK_IO_INPROG) == 0))
 		flashcache_lru_accessed(dmc, *index);
-	/* 
-	 * If the block was DIRTY and earmarked for cleaning because it was old, make 
+	/*
+	 * If the block was DIRTY and earmarked for cleaning because it was old, make
 	 * the block young again.
 	 */
 	flashcache_clear_fallow(dmc, *index);
@@ -647,10 +655,10 @@ find_reclaim_dbn(struct cache_c *dmc, int start_index, int *index)
 		flashcache_reclaim_lru_get_old_block(dmc, start_index, index);
 }
 
-/* 
+/*
  * dbn is the starting sector, io_size is the number of sectors.
  */
-static int 
+static int
 flashcache_lookup(struct cache_c *dmc, struct bio *bio, int *index)
 {
 	sector_t dbn = bio->bi_sector;
@@ -676,7 +684,7 @@ flashcache_lookup(struct cache_c *dmc, struct bio *bio, int *index)
 		/* We didn't find an invalid entry, search for oldest valid entry */
 		find_reclaim_dbn(dmc, start_index, &oldest_clean);
 	}
-	/* 
+	/*
 	 * Cache miss :
 	 * We can't choose an entry marked INPROG, but choose the oldest
 	 * INVALID or the oldest VALID entry.
@@ -703,9 +711,9 @@ flashcache_lookup(struct cache_c *dmc, struct bio *bio, int *index)
 }
 
 /*
- * Cache Metadata Update functions 
+ * Cache Metadata Update functions
  */
-void 
+void
 flashcache_md_write_callback(unsigned long error, void *context)
 {
 	struct kcached_job *job = (struct kcached_job *)context;
@@ -722,9 +730,9 @@ static int
 flashcache_alloc_md_sector(struct kcached_job *job)
 {
 	struct page *page = NULL;
-	struct cache_c *dmc = job->dmc;	
+	struct cache_c *dmc = job->dmc;
 	unsigned long addr = 0;
-	
+
 	if (likely((dmc->sysctl_error_inject & MD_ALLOC_SECTOR_ERROR) == 0)) {
 		/* Get physically consecutive pages */
 		addr = __get_free_pages(GFP_NOIO, get_order(MD_BLOCK_BYTES(job->dmc)));
@@ -737,7 +745,7 @@ flashcache_alloc_md_sector(struct kcached_job *job)
 		return -ENOMEM;
 	} else {
 		job->pl_base[0].page = page;
-		job->pl_base[0].next = NULL;	
+		job->pl_base[0].next = NULL;
 		job->md_block = (struct flash_cacheblock *)addr;
 		return 0;
 	}
@@ -754,7 +762,7 @@ flashcache_free_md_sector(struct kcached_job *job)
 void
 flashcache_md_write_kickoff(struct kcached_job *job)
 {
-	struct cache_c *dmc = job->dmc;	
+	struct cache_c *dmc = job->dmc;
 	struct flash_cacheblock *md_block;
 	int md_block_ix;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
@@ -768,7 +776,7 @@ flashcache_md_write_kickoff(struct kcached_job *job)
 	struct cache_set *cache_set = &dmc->cache_sets[job->index / dmc->assoc];
 
 	if (flashcache_alloc_md_sector(job)) {
-		DMERR("flashcache: %d: Cache metadata write failed, cannot alloc page ! block %lu", 
+		DMERR("flashcache: %d: Cache metadata write failed, cannot alloc page ! block %lu",
 		      job->action, job->job_io_regions.disk.sector);
 		flashcache_md_write_callback(-EIO, job);
 		return;
@@ -784,33 +792,33 @@ flashcache_md_write_kickoff(struct kcached_job *job)
 	md_block = job->md_block;
 	md_block_ix = INDEX_TO_MD_BLOCK(dmc, job->index) * MD_SLOTS_PER_BLOCK(dmc);
 	/* First copy out the entire md block */
-	for (i = 0 ; 
-	     i < MD_SLOTS_PER_BLOCK(dmc) && md_block_ix < dmc->size ; 
+	for (i = 0 ;
+	     i < MD_SLOTS_PER_BLOCK(dmc) && md_block_ix < dmc->size ;
 	     i++, md_block_ix++) {
 		md_block[i].dbn = dmc->cache[md_block_ix].dbn;
 #ifdef FLASHCACHE_DO_CHECKSUMS
 		md_block[i].checksum = dmc->cache[md_block_ix].checksum;
 #endif
-		md_block[i].cache_state = 
+		md_block[i].cache_state =
 			dmc->cache[md_block_ix].cache_state & (VALID | INVALID | DIRTY);
 	}
 	/* Then set/clear the DIRTY bit for the "current" index */
 	if (job->action == WRITECACHE) {
 		/* DIRTY the cache block */
-		md_block[INDEX_TO_MD_BLOCK_OFFSET(dmc, job->index)].cache_state = 
+		md_block[INDEX_TO_MD_BLOCK_OFFSET(dmc, job->index)].cache_state =
 			(VALID | DIRTY);
 	} else { /* job->action == WRITEDISK* */
 		/* un-DIRTY the cache block */
 		md_block[INDEX_TO_MD_BLOCK_OFFSET(dmc, job->index)].cache_state = VALID;
 	}
 
-	for (job = md_block_head->md_io_inprog ; 
+	for (job = md_block_head->md_io_inprog ;
 	     job != NULL ;
 	     job = job->next) {
 		dmc->flashcache_stats.md_write_batch++;
 		if (job->action == WRITECACHE) {
 			/* DIRTY the cache block */
-			md_block[INDEX_TO_MD_BLOCK_OFFSET(dmc, job->index)].cache_state = 
+			md_block[INDEX_TO_MD_BLOCK_OFFSET(dmc, job->index)].cache_state =
 				(VALID | DIRTY);
 		} else { /* job->action == WRITEDISK* */
 			/* un-DIRTY the cache block */
@@ -841,9 +849,9 @@ flashcache_md_write_done(struct kcached_job *job)
 	struct cacheblock *cacheblk;
 	int set;
 	struct cache_set *cache_set;
-		
+
 	VERIFY(!in_interrupt());
-	VERIFY(job->action == WRITEDISK || job->action == WRITECACHE || 
+	VERIFY(job->action == WRITEDISK || job->action == WRITECACHE ||
 	       job->action == WRITEDISK_SYNC);
 	flashcache_free_md_sector(job);
 	job->md_block = NULL;
@@ -878,7 +886,7 @@ flashcache_md_write_done(struct kcached_job *job)
 			flashcache_bio_endio(job->bio, job->error, dmc, &job->io_start_time);
 			if (job->error || cacheblk->nr_queued > 0) {
 				if (job->error) {
-					DMERR("flashcache: WRITE: Cache metadata write failed ! error %d block %lu", 
+					DMERR("flashcache: WRITE: Cache metadata write failed ! error %d block %lu",
 					      job->error, cacheblk->dbn);
 				}
 				spin_unlock_irq(&cache_set->set_spin_lock);
@@ -898,7 +906,7 @@ flashcache_md_write_done(struct kcached_job *job)
 				dmc->sysctl_error_inject &= ~WRITEDISK_MD_ERROR;
 			}
 			/*
-			 * If we have an error on a WRITEDISK*, no choice but to preserve the 
+			 * If we have an error on a WRITEDISK*, no choice but to preserve the
 			 * dirty block in cache. Fail any IOs for this block that occurred while
 			 * the block was being cleaned.
 			 */
@@ -909,7 +917,7 @@ flashcache_md_write_done(struct kcached_job *job)
 				VERIFY(atomic_read(&dmc->nr_dirty) > 0);
 				cache_set->nr_dirty--;
 				atomic_dec(&dmc->nr_dirty);
-			} else 
+			} else
 				dmc->flashcache_errors.ssd_write_errors++;
 			VERIFY(cache_set->clean_inprog > 0);
 			VERIFY(atomic_read(&dmc->clean_inprog) > 0);
@@ -917,7 +925,7 @@ flashcache_md_write_done(struct kcached_job *job)
 			atomic_dec(&dmc->clean_inprog);
 			if (job->error || cacheblk->nr_queued > 0) {
 				if (job->error) {
-					DMERR("flashcache: CLEAN: Cache metadata write failed ! error %d block %lu", 
+					DMERR("flashcache: CLEAN: Cache metadata write failed ! error %d block %lu",
 					      job->error, cacheblk->dbn);
 				}
 				spin_unlock_irq(&cache_set->set_spin_lock);
@@ -959,13 +967,13 @@ flashcache_md_write_done(struct kcached_job *job)
 	}
 }
 
-/* 
+/*
  * Kick off a cache metadata update (called from workqueue).
- * Cache metadata update IOs to a given metadata sector are serialized using the 
+ * Cache metadata update IOs to a given metadata sector are serialized using the
  * nr_in_prog bit in the md sector bufhead.
  * If a metadata IO is already in progress, we queue up incoming metadata updates
  * on the pending_jobs list of the md sector bufhead. When kicking off an IO, we
- * cluster all these pending updates and do all of them as 1 flash write (that 
+ * cluster all these pending updates and do all of them as 1 flash write (that
  * logic is in md_write_kickoff), where it switches out the entire pending_jobs
  * list and does all of those updates as 1 ssd write.
  */
@@ -975,15 +983,15 @@ flashcache_md_write(struct kcached_job *job)
 	struct cache_c *dmc = job->dmc;
 	struct cache_md_block_head *md_block_head;
 	unsigned long flags;
-	
-	VERIFY(job->action == WRITEDISK || job->action == WRITECACHE || 
+
+	VERIFY(job->action == WRITEDISK || job->action == WRITECACHE ||
 	       job->action == WRITEDISK_SYNC);
 	md_block_head = &dmc->md_blocks_buf[INDEX_TO_MD_BLOCK(dmc, job->index)];
 	spin_lock_irqsave(&md_block_head->md_block_lock, flags);
 	/* If a write is in progress for this metadata sector, queue this update up */
 	if (md_block_head->nr_in_prog != 0) {
 		struct kcached_job **nodepp;
-		
+
 		/* A MD update is already in progress, queue this one up for later */
 		nodepp = &md_block_head->queued_updates;
 		while (*nodepp != NULL)
@@ -998,9 +1006,9 @@ flashcache_md_write(struct kcached_job *job)
 		 * Always push to a worker thread. If the driver has
 		 * a completion thread, we could end up deadlocking even
 		 * if the context would be safe enough to write from.
-		 * This could be executed from the context of an IO 
+		 * This could be executed from the context of an IO
 		 * completion thread. Kicking off the write from that
-		 * context could result in the IO completion thread 
+		 * context could result in the IO completion thread
 		 * blocking (eg on memory allocation). That can easily
 		 * deadlock.
 		 */
@@ -1009,7 +1017,7 @@ flashcache_md_write(struct kcached_job *job)
 	}
 }
 
-static void 
+static void
 flashcache_kcopyd_callback(int read_err, unsigned int write_err, void *context)
 {
 	struct kcached_job *job = (struct kcached_job *)context;
@@ -1036,8 +1044,9 @@ flashcache_kcopyd_callback(int read_err, unsigned int write_err, void *context)
 		if (write_err)
 			write_err = -EIO;
 		/* Disk write failed. We can not purge this block from flash */
-		DMERR("flashcache: Disk writeback failed ! read error %d write error %d block %lu", 
-		      -read_err, -write_err, job->job_io_regions.disk.sector);
+        if(!flashcache_should_supress_dmerr(dmc))
+            DMERR("flashcache: Disk writeback failed ! read error %d write error %d block %lu",
+                  -read_err, -write_err, job->job_io_regions.disk.sector);
 		VERIFY(cache_set->clean_inprog > 0);
 		cache_set->clean_inprog--;
 		VERIFY(atomic_read(&dmc->clean_inprog) > 0);
@@ -1065,7 +1074,7 @@ flashcache_dirty_writeback(struct cache_c *dmc, int index)
 	int device_removal = 0;
 	int set = index / dmc->assoc;
 	struct cache_set *cache_set = &dmc->cache_sets[set];
-	
+
 	DPRINTK("flashcache_dirty_writeback: Index %d", index);
 	spin_lock_irq(&cache_set->set_spin_lock);
 	VERIFY((cacheblk->cache_state & BLOCK_IO_INPROG) == DISKWRITEINPROG);
@@ -1084,7 +1093,7 @@ flashcache_dirty_writeback(struct cache_c *dmc, int index)
 	 * If the device is being removed, do not kick off any more cleanings.
 	 */
 	if (unlikely(atomic_read(&dmc->remove_in_prog))) {
-		DMERR("flashcache: Dirty Writeback (for set cleaning) aborted for device removal, block %lu", 
+		DMERR("flashcache: Dirty Writeback (for set cleaning) aborted for device removal, block %lu",
 		      cacheblk->dbn);
 		if (job)
 			flashcache_free_cache_job(job);
@@ -1099,7 +1108,7 @@ flashcache_dirty_writeback(struct cache_c *dmc, int index)
 		cacheblk->cache_state &= ~(BLOCK_IO_INPROG);
 		spin_unlock_irq(&cache_set->set_spin_lock);
 		if (device_removal == 0)
-			DMERR("flashcache: Dirty Writeback (for set cleaning) failed ! Can't allocate memory, block %lu", 
+			DMERR("flashcache: Dirty Writeback (for set cleaning) failed ! Can't allocate memory, block %lu",
 			      cacheblk->dbn);
 	} else {
 		job->bio = NULL;
@@ -1108,16 +1117,16 @@ flashcache_dirty_writeback(struct cache_c *dmc, int index)
 		dmc->flashcache_stats.ssd_reads++;
 		dmc->flashcache_stats.disk_writes++;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
-		kcopyd_copy(flashcache_kcp_client, &job->job_io_regions.cache, 1, &job->job_io_regions.disk, 0, 
+		kcopyd_copy(flashcache_kcp_client, &job->job_io_regions.cache, 1, &job->job_io_regions.disk, 0,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,25)
-			    flashcache_kcopyd_callback, 
+			    flashcache_kcopyd_callback,
 #else
-			    (kcopyd_notify_fn) flashcache_kcopyd_callback, 
+			    (kcopyd_notify_fn) flashcache_kcopyd_callback,
 #endif
 			    job);
 #else
-		dm_kcopyd_copy(flashcache_kcp_client, &job->job_io_regions.cache, 1, &job->job_io_regions.disk, 0, 
-			       (dm_kcopyd_notify_fn) flashcache_kcopyd_callback, 
+		dm_kcopyd_copy(flashcache_kcp_client, &job->job_io_regions.cache, 1, &job->job_io_regions.disk, 0,
+			       (dm_kcopyd_notify_fn) flashcache_kcopyd_callback,
 			       (void *)job);
 #endif
 	}
@@ -1126,27 +1135,27 @@ flashcache_dirty_writeback(struct cache_c *dmc, int index)
 /*
  * This function encodes the background disk cleaning logic.
  * Background disk cleaning is triggered for 2 reasons.
- A) Dirty blocks are lying fallow in the set, making them good 
+ A) Dirty blocks are lying fallow in the set, making them good
     candidates for being cleaned.
- B) This set has dirty blocks over the configured threshold 
+ B) This set has dirty blocks over the configured threshold
     for a set.
  * (A) takes precedence over (B). Fallow dirty blocks are cleaned
  * first.
  * The cleaning of disk blocks is subject to the write limits per
  * set and across the cache, which this function enforces.
  *
- * 1) Select the n blocks that we want to clean (choosing whatever policy), 
+ * 1) Select the n blocks that we want to clean (choosing whatever policy),
  *    sort them.
- * 2) Then sweep the entire set looking for other DIRTY blocks that can be 
- *    tacked onto any of these blocks to form larger contigous writes. 
- *    The idea here is that if you are going to do a write anyway, then we 
- *    might as well opportunistically write out any contigous blocks for 
+ * 2) Then sweep the entire set looking for other DIRTY blocks that can be
+ *    tacked onto any of these blocks to form larger contigous writes.
+ *    The idea here is that if you are going to do a write anyway, then we
+ *    might as well opportunistically write out any contigous blocks for
  *    free.
  */
 
 /* Are we under the limits for disk cleaning ? */
 static inline int
-flashcache_can_clean(struct cache_c *dmc, 
+flashcache_can_clean(struct cache_c *dmc,
 		     struct cache_set *cache_set,
 		     int nr_writes)
 {
@@ -1161,7 +1170,7 @@ flashcache_clean_set(struct cache_c *dmc, int set, int force_clean_blocks)
 	struct dbn_index_pair *writes_list = NULL;
 	struct dbn_index_pair *set_dirty_list = NULL;
 	int nr_writes = 0, i;
-	int start_index = set * dmc->assoc; 
+	int start_index = set * dmc->assoc;
 	int end_index = start_index + dmc->assoc;
 	struct cache_set *cache_set = &dmc->cache_sets[set];
 	struct cacheblock *cacheblk;
@@ -1171,13 +1180,13 @@ flashcache_clean_set(struct cache_c *dmc, int set, int force_clean_blocks)
 	if (dmc->cache_mode != FLASHCACHE_WRITE_BACK)
 		return;
 	if (dmc->sysctl_reclaim_policy == FLASHCACHE_FIFO)
-		/* 
+		/*
 		 * We only do force cleaning on a cache miss if reclaim policy
 		 * is LRU.
 		 */
 		force_clean_blocks = 0;
-	/* 
-	 * If a removal of this device is in progress, don't kick off 
+	/*
+	 * If a removal of this device is in progress, don't kick off
 	 * any more cleanings. This isn't sufficient though. We still need to
 	 * stop cleanings inside flashcache_dirty_writeback() because we could
 	 * have started a device remove after tested this here.
@@ -1189,9 +1198,9 @@ flashcache_clean_set(struct cache_c *dmc, int set, int force_clean_blocks)
 		return;
 	}
 	spin_lock_irq(&cache_set->set_spin_lock);
-	/* 
+	/*
 	 * Before we try to clean any blocks, check the last time the fallow block
-	 * detection was done. If it has been more than "fallow_delay" seconds, make 
+	 * detection was done. If it has been more than "fallow_delay" seconds, make
 	 * a sweep through the set to detect (mark) fallow blocks.
 	 */
 	if (dmc->sysctl_fallow_delay && time_after(jiffies, cache_set->fallow_tstamp)) {
@@ -1200,19 +1209,19 @@ flashcache_clean_set(struct cache_c *dmc, int set, int force_clean_blocks)
 		cache_set->fallow_tstamp = jiffies + dmc->sysctl_fallow_delay * HZ;
 	}
 	/* If there are any dirty fallow blocks, clean them first */
-	for (i = start_index ; 
+	for (i = start_index ;
 	     (dmc->sysctl_fallow_delay > 0 &&
 	      cache_set->dirty_fallow > 0 &&
 	      time_after(jiffies, cache_set->fallow_next_cleaning) &&
-	      i < end_index) ; 
+	      i < end_index) ;
 	     i++) {
 		cacheblk = &dmc->cache[i];
 		if (!(cacheblk->cache_state & DIRTY_FALLOW_2))
 			continue;
 		if (!flashcache_can_clean(dmc, cache_set, nr_writes)) {
 			/*
-			 * There are fallow blocks that need cleaning, but we 
-			 * can't clean them this pass, schedule delayed cleaning 
+			 * There are fallow blocks that need cleaning, but we
+			 * can't clean them this pass, schedule delayed cleaning
 			 * later.
 			 */
 			do_delayed_clean = 1;
@@ -1261,7 +1270,7 @@ flashcache_clean_set(struct cache_c *dmc, int set, int force_clean_blocks)
 		       flashcache_can_clean(dmc, cache_set, nr_writes) &&
 		       nr_writes < threshold_clean) {
 			cacheblk = &dmc->cache[i];
-			if ((cacheblk->cache_state & (DIRTY | BLOCK_IO_INPROG)) == DIRTY) {	
+			if ((cacheblk->cache_state & (DIRTY | BLOCK_IO_INPROG)) == DIRTY) {
 				cacheblk->cache_state |= DISKWRITEINPROG;
 				flashcache_clear_fallow(dmc, i);
 				writes_list[nr_writes].dbn = cacheblk->dbn;
@@ -1333,7 +1342,7 @@ flashcache_read_hit(struct cache_c *dmc, struct bio* bio, int index)
 	/* If block is busy, queue IO pending completion of in-progress IO */
 	if (!(cacheblk->cache_state & BLOCK_IO_INPROG) && (cacheblk->nr_queued == 0)) {
 		struct kcached_job *job;
-			
+
 		cacheblk->cache_state |= CACHEREADINPROG;
 		dmc->flashcache_stats.read_hits++;
 		flashcache_setlocks_multidrop(dmc, bio);
@@ -1347,12 +1356,12 @@ flashcache_read_hit(struct cache_c *dmc, struct bio* bio, int index)
 			dmc->sysctl_error_inject &= ~READ_HIT_JOB_ALLOC_FAIL;
 		}
 		if (unlikely(job == NULL)) {
-			/* 
+			/*
 			 * We have a read hit, and can't allocate a job.
-			 * Since we dropped the spinlock, we have to drain any 
+			 * Since we dropped the spinlock, we have to drain any
 			 * pending jobs.
 			 */
-			DMERR("flashcache: Read (hit) failed ! Can't allocate memory for cache IO, block %lu", 
+			DMERR("flashcache: Read (hit) failed ! Can't allocate memory for cache IO, block %lu",
 			      cacheblk->dbn);
 			flashcache_bio_endio(bio, -EIO, dmc, NULL);
 			spin_lock_irq(&dmc->cache_sets[set].set_spin_lock);
@@ -1401,12 +1410,12 @@ flashcache_read_miss(struct cache_c *dmc, struct bio* bio,
 		dmc->sysctl_error_inject &= ~READ_MISS_JOB_ALLOC_FAIL;
 	}
 	if (unlikely(job == NULL)) {
-		/* 
+		/*
 		 * We have a read miss, and can't allocate a job.
-		 * Since we dropped the spinlock, we have to drain any 
+		 * Since we dropped the spinlock, we have to drain any
 		 * pending jobs.
 		 */
-		DMERR("flashcache: Read (miss) failed ! Can't allocate memory for cache IO, block %lu", 
+		DMERR("flashcache: Read (miss) failed ! Can't allocate memory for cache IO, block %lu",
 		      cacheblk->dbn);
 		flashcache_bio_endio(bio, -EIO, dmc, NULL);
 		atomic_dec(&dmc->cached_blocks);
@@ -1438,9 +1447,9 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 	struct cacheblock *cacheblk;
 	int queued;
 	unsigned long flags;
-	
+
 	DPRINTK("Got a %s for %llu (%u bytes)",
-	        (bio_rw(bio) == READ ? "READ":"READA"), 
+	        (bio_rw(bio) == READ ? "READ":"READA"),
 		bio->bi_sector, bio->bi_size);
 
 	flashcache_setlocks_multiget(dmc, bio);
@@ -1448,24 +1457,24 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 	/* Cache Read Hit case */
 	if (res > 0) {
 		cacheblk = &dmc->cache[index];
-		if ((cacheblk->cache_state & VALID) && 
+		if ((cacheblk->cache_state & VALID) &&
 		    (cacheblk->dbn == bio->bi_sector)) {
 			flashcache_read_hit(dmc, bio, index);
 			return;
 		}
 	}
 	/*
-	 * In all cases except for a cache hit (and VALID), test for potential 
+	 * In all cases except for a cache hit (and VALID), test for potential
 	 * invalidations that we need to do.
 	 */
 	queued = flashcache_inval_blocks(dmc, bio);
 	if (queued) {
 		if (unlikely(queued < 0))
 			flashcache_bio_endio(bio, -EIO, dmc, NULL);
-		if ((res > 0) && 
+		if ((res > 0) &&
 		    (dmc->cache[index].cache_state == INVALID))
-			/* 
-			 * If happened to pick up an INVALID block, put it back on the 
+			/*
+			 * If happened to pick up an INVALID block, put it back on the
 			 * per cache-set invalid list
 			 */
 			flashcache_invalid_insert(dmc, index);
@@ -1476,7 +1485,7 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 	/*
 	 * Locking Note :
 	 * We are taking the ioctl_lock holding the cache set multilocks.
-	 * The ioctl lock is held for very short durations, and we do not 
+	 * The ioctl lock is held for very short durations, and we do not
 	 * (and should not) try to acquire any other locks holding the ioctl
 	 * lock.
 	 */
@@ -1484,10 +1493,10 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 	if (res == -1 || flashcache_uncacheable(dmc, bio)) {
 		spin_unlock_irqrestore(&dmc->ioctl_lock, flags);
 		/* No room , non-cacheable or sequential i/o means not wanted in cache */
-		if ((res > 0) && 
+		if ((res > 0) &&
 		    (dmc->cache[index].cache_state == INVALID))
-			/* 
-			 * If happened to pick up an INVALID block, put it back on the 
+			/*
+			 * If happened to pick up an INVALID block, put it back on the
 			 * per cache-set invalid list
 			 */
 			flashcache_invalid_insert(dmc, index);
@@ -1499,19 +1508,19 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 		/* Start uncached IO */
 		flashcache_start_uncached_io(dmc, bio);
 		return;
-	} else 
+	} else
 		spin_unlock_irqrestore(&dmc->ioctl_lock, flags);
 
-	/* 
-	 * (res == INVALID) Cache Miss 
+	/*
+	 * (res == INVALID) Cache Miss
 	 * And we found cache blocks to replace
 	 * Claim the cache blocks before giving up the spinlock
 	 */
 	if (dmc->cache[index].cache_state & VALID) {
 		dmc->flashcache_stats.replace++;
-		/* 
-		 * We are switching the block's identity. Remove it from 
-		 * the existing hash queue and re-insert it into a new one 
+		/*
+		 * We are switching the block's identity. Remove it from
+		 * the existing hash queue and re-insert it into a new one
 		 * below, after switching it to the new identity.
 		 */
 		flashcache_hash_remove(dmc, index);
@@ -1528,7 +1537,7 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 }
 
 /*
- * Invalidation might require to grab locks on 2 cache sets. 
+ * Invalidation might require to grab locks on 2 cache sets.
  * To prevent Lock Order Reversals (and deadlocks), always grab
  * the cache set locks in ascending order.
  */
@@ -1537,7 +1546,7 @@ flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio)
 {
 	int start_set = hash_block(dmc, bio->bi_sector);
 	int end_set = hash_block(dmc, bio->bi_sector + (to_sector(bio->bi_size) - 1));
-	
+
 	VERIFY(!in_interrupt());
 	spin_lock_irq(&dmc->cache_sets[start_set].set_spin_lock);
 	if (start_set != end_set)
@@ -1549,7 +1558,7 @@ flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio)
 {
 	int start_set = hash_block(dmc, bio->bi_sector);
 	int end_set = hash_block(dmc, bio->bi_sector + (to_sector(bio->bi_size) - 1));
-	
+
 	VERIFY(!in_interrupt());
 	if (start_set != end_set)
 		spin_unlock(&dmc->cache_sets[end_set].set_spin_lock);
@@ -1558,7 +1567,7 @@ flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio)
 
 /*
  * Invalidate any colliding blocks if they are !BUSY and !DIRTY. If the colliding
- * block is DIRTY, we need to kick off a write. In both cases, we need to wait 
+ * block is DIRTY, we need to kick off a write. In both cases, we need to wait
  * until the underlying IO is finished, and then proceed with the invalidation.
  */
 static int
@@ -1569,13 +1578,13 @@ flashcache_inval_block_set(struct cache_c *dmc, int set, struct bio *bio, int rw
 	sector_t io_end = bio->bi_sector + (to_sector(bio->bi_size) - 1);
 	int start_index, end_index, i;
 	struct cacheblock *cacheblk;
-	
+
 	start_index = dmc->assoc * set;
 	end_index = start_index + dmc->assoc;
 	for (i = start_index ; i < end_index ; i++) {
 		sector_t start_dbn = dmc->cache[i].dbn;
 		sector_t end_dbn = start_dbn + dmc->block_size;
-		
+
 		cacheblk = &dmc->cache[i];
 		if (cacheblk->cache_state & INVALID)
 			continue;
@@ -1597,22 +1606,22 @@ flashcache_inval_block_set(struct cache_c *dmc, int set, struct bio *bio, int rw
 				continue;
 			}
 			/*
-			 * The conflicting block has either IO in progress or is 
-			 * Dirty. In all cases, we need to add ourselves to the 
+			 * The conflicting block has either IO in progress or is
+			 * Dirty. In all cases, we need to add ourselves to the
 			 * pending queue. Then if the block is dirty, we kick off
-			 * an IO to clean the block. 
+			 * an IO to clean the block.
 			 * Note that if the block is dirty and IO is in progress
 			 * on it, the do_pending handler will clean the block
 			 * and then process the pending queue.
 			 */
 			flashcache_enq_pending(dmc, bio, i, INVALIDATE, pjob);
 			if ((cacheblk->cache_state & (DIRTY | BLOCK_IO_INPROG)) == DIRTY) {
-				/* 
+				/*
 				 * Kick off block write.
 				 * We can't kick off the write under the spinlock.
-				 * Instead, we mark the slot DISKWRITEINPROG, drop 
+				 * Instead, we mark the slot DISKWRITEINPROG, drop
 				 * the spinlock and kick off the write. A block marked
-				 * DISKWRITEINPROG cannot change underneath us. 
+				 * DISKWRITEINPROG cannot change underneath us.
 				 * to enqueue ourselves onto it's pending queue.
 				 *
 				 * XXX - The dropping of the lock here can be avoided if
@@ -1645,7 +1654,7 @@ flashcache_inval_block_set_v3_checks(struct cache_c *dmc, int set, struct bio *b
 	for (i = start_index ; i < end_index ; i++) {
 		sector_t start_dbn;
 		sector_t end_dbn;
-		
+
 		cacheblk = &dmc->cache[i];
 		start_dbn = cacheblk->dbn;
 		end_dbn = start_dbn + dmc->block_size;
@@ -1661,7 +1670,7 @@ flashcache_inval_block_set_v3_checks(struct cache_c *dmc, int set, struct bio *b
 #endif
 
 static int
-flashcache_inval_block_set_v3(struct cache_c *dmc, int set, struct bio *bio, 
+flashcache_inval_block_set_v3(struct cache_c *dmc, int set, struct bio *bio,
 			      struct pending_job *pjob)
 {
 	int index;
@@ -1681,12 +1690,12 @@ flashcache_inval_block_set_v3(struct cache_c *dmc, int set, struct bio *bio,
 			printk(KERN_ERR "Invalidate: Did not find block on hash "
 			       "but found in set %d\n", index);
 			printk(KERN_ERR "io_start = %lu bi_sector = %lu bi_end = %lu\n",
-			       io_start, 
-			       bio->bi_sector, 
+			       io_start,
+			       bio->bi_sector,
 			       bio->bi_sector + (to_sector(bio->bi_size) - 1));
 			printk(KERN_ERR "cache_state = %x hash_state = %x cacheblk->dbn = %lu\n",
-			       dmc->cache[index].cache_state, 
-			       dmc->cache[index].hash_state, 			       
+			       dmc->cache[index].cache_state,
+			       dmc->cache[index].hash_state,
 			       dmc->cache[index].dbn);
 			VERIFY(0);
 		}
@@ -1712,22 +1721,22 @@ flashcache_inval_block_set_v3(struct cache_c *dmc, int set, struct bio *bio,
 		return 0;
 	}
 	/*
-	 * The conflicting block has either IO in progress or is 
-	 * Dirty. In all cases, we need to add ourselves to the 
+	 * The conflicting block has either IO in progress or is
+	 * Dirty. In all cases, we need to add ourselves to the
 	 * pending queue. Then if the block is dirty, we kick off
-	 * an IO to clean the block. 
+	 * an IO to clean the block.
 	 * Note that if the block is dirty and IO is in progress
 	 * on it, the do_pending handler will clean the block
 	 * and then process the pending queue.
 	 */
 	flashcache_enq_pending(dmc, bio, index, INVALIDATE, pjob);
 	if ((cacheblk->cache_state & (DIRTY | BLOCK_IO_INPROG)) == DIRTY) {
-		/* 
+		/*
 		 * Kick off block write.
 		 * We can't kick off the write under the spinlock.
-		 * Instead, we mark the slot DISKWRITEINPROG, drop 
+		 * Instead, we mark the slot DISKWRITEINPROG, drop
 		 * the spinlock and kick off the write. A block marked
-		 * DISKWRITEINPROG cannot change underneath us. 
+		 * DISKWRITEINPROG cannot change underneath us.
 		 * to enqueue ourselves onto it's pending queue.
 		 *
 		 * XXX - The dropping of the lock here can be avoided if
@@ -1745,14 +1754,14 @@ flashcache_inval_block_set_v3(struct cache_c *dmc, int set, struct bio *bio,
 
 static int
 flashcache_inval_blocks(struct cache_c *dmc, struct bio *bio)
-{	
+{
 	sector_t io_start;
 	sector_t io_end;
 	int start_set, end_set;
 	int queued;
 	struct pending_job *pjob1, *pjob2;
 	sector_t mask;
-	
+
 	pjob1 = flashcache_alloc_pending_job(dmc);
 	if (unlikely(dmc->sysctl_error_inject & INVAL_PENDING_JOB_ALLOC_FAIL)) {
 		if (pjob1) {
@@ -1780,33 +1789,33 @@ flashcache_inval_blocks(struct cache_c *dmc, struct bio *bio)
 		VERIFY(spin_is_locked(&dmc->cache_sets[start_set].set_spin_lock));
 		if (start_set != end_set)
 			VERIFY(spin_is_locked(&dmc->cache_sets[end_set].set_spin_lock));
-		queued = flashcache_inval_block_set(dmc, start_set, bio, 
+		queued = flashcache_inval_block_set(dmc, start_set, bio,
 						    bio_data_dir(bio), pjob1);
 		if (queued) {
 			flashcache_free_pending_job(pjob2);
 			goto out;
 		} else
-			flashcache_free_pending_job(pjob1);		
+			flashcache_free_pending_job(pjob1);
 		if (start_set != end_set) {
-			queued = flashcache_inval_block_set(dmc, end_set, 
+			queued = flashcache_inval_block_set(dmc, end_set,
 							    bio, bio_data_dir(bio), pjob2);
 			if (!queued)
 				flashcache_free_pending_job(pjob2);
 		} else
-			flashcache_free_pending_job(pjob2);		
+			flashcache_free_pending_job(pjob2);
 	} else {
-		/* 
+		/*
 		 * Assume a 4KB blocksize.
 		 * Knowns :
 		 * 1) DM will break up IOs at 4KB boundaries.
 		 * 2) Flashcache will only cache *exactly* 4KB IOs.
 		 * Conclusion :
-		 * Flashcache will only cache an IO that begins exactly at a 4KB 
+		 * Flashcache will only cache an IO that begins exactly at a 4KB
 		 * boundary and at a 4KB length !
 		 * The incoming IO might be a smaller than 4KB IO, where bi_sector
 		 * is NOT 4KB aligned or bi_size < 4KB
 		 * To check for overlaps, we simply need to check if the 4KB block
-		 * that [bi_sector, bi_sector + bi_size] overlaps with a block that 
+		 * that [bi_sector, bi_sector + bi_size] overlaps with a block that
 		 * is in the cache.
 		 */
 		mask = ~((1 << dmc->block_shift) - 1);
@@ -1817,7 +1826,7 @@ flashcache_inval_blocks(struct cache_c *dmc, struct bio *bio)
 		if (queued) {
 			goto out;
 		} else
-			flashcache_free_pending_job(pjob1);		
+			flashcache_free_pending_job(pjob1);
 	}
 out:
 	return queued;
@@ -1836,8 +1845,8 @@ flashcache_write_miss(struct cache_c *dmc, struct bio *bio, int index)
 	queued = flashcache_inval_blocks(dmc, bio);
 	if (queued) {
 		if (cacheblk->cache_state == INVALID)
-			/* 
-			 * If happened to pick up an INVALID block, put it back on the 
+			/*
+			 * If happened to pick up an INVALID block, put it back on the
 			 * per cache-set invalid list
 			 */
 			flashcache_invalid_insert(dmc, index);
@@ -1848,9 +1857,9 @@ flashcache_write_miss(struct cache_c *dmc, struct bio *bio, int index)
 	}
 	if (cacheblk->cache_state & VALID) {
 		dmc->flashcache_stats.wr_replace++;
-		/* 
-		 * We are switching the block's identity. Remove it from 
-		 * the existing hash queue and re-insert it into a new one 
+		/*
+		 * We are switching the block's identity. Remove it from
+		 * the existing hash queue and re-insert it into a new one
 		 * below, after switching it to the new identity.
 		 */
 		flashcache_hash_remove(dmc, index);
@@ -1868,12 +1877,12 @@ flashcache_write_miss(struct cache_c *dmc, struct bio *bio, int index)
 		dmc->sysctl_error_inject &= ~WRITE_MISS_JOB_ALLOC_FAIL;
 	}
 	if (unlikely(job == NULL)) {
-		/* 
+		/*
 		 * We have a write miss, and can't allocate a job.
-		 * Since we dropped the spinlock, we have to drain any 
+		 * Since we dropped the spinlock, we have to drain any
 		 * pending jobs.
 		 */
-		DMERR("flashcache: Write (miss) failed ! Can't allocate memory for cache IO, block %lu", 
+		DMERR("flashcache: Write (miss) failed ! Can't allocate memory for cache IO, block %lu",
 		      cacheblk->dbn);
 		flashcache_bio_endio(bio, -EIO, dmc, NULL);
 		atomic_dec(&dmc->cached_blocks);
@@ -1888,22 +1897,22 @@ flashcache_write_miss(struct cache_c *dmc, struct bio *bio, int index)
 	} else {
 		atomic_inc(&dmc->nr_jobs);
 		dmc->flashcache_stats.ssd_writes++;
-		job->action = WRITECACHE; 
+		job->action = WRITECACHE;
 		if (dmc->cache_mode == FLASHCACHE_WRITE_BACK) {
-			/* Write data to the cache */		
-			dm_io_async_bvec(1, &job->job_io_regions.cache, WRITE, 
+			/* Write data to the cache */
+			dm_io_async_bvec(1, &job->job_io_regions.cache, WRITE,
 					 bio,
 					 flashcache_io_callback, job);
 		} else {
 			VERIFY(dmc->cache_mode == FLASHCACHE_WRITE_THROUGH);
 			/* Write data to both disk and cache */
-			dm_io_async_bvec(2, 
+			dm_io_async_bvec(2,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
-					 (struct io_region *)&job->job_io_regions, 
+					 (struct io_region *)&job->job_io_regions,
 #else
-					 (struct dm_io_region *)&job->job_io_regions, 
+					 (struct dm_io_region *)&job->job_io_regions,
 #endif
-					 WRITE, 
+					 WRITE,
 					 bio,
 					 flashcache_io_callback, job);
 		}
@@ -1936,12 +1945,12 @@ flashcache_write_hit(struct cache_c *dmc, struct bio *bio, int index)
 			dmc->sysctl_error_inject &= ~WRITE_HIT_JOB_ALLOC_FAIL;
 		}
 		if (unlikely(job == NULL)) {
-			/* 
+			/*
 			 * We have a write hit, and can't allocate a job.
-			 * Since we dropped the spinlock, we have to drain any 
+			 * Since we dropped the spinlock, we have to drain any
 			 * pending jobs.
 			 */
-			DMERR("flashcache: Write (hit) failed ! Can't allocate memory for cache IO, block %lu", 
+			DMERR("flashcache: Write (hit) failed ! Can't allocate memory for cache IO, block %lu",
 			      cacheblk->dbn);
 			flashcache_bio_endio(bio, -EIO, dmc, NULL);
 			spin_lock_irq(&cache_set->set_spin_lock);
@@ -1955,7 +1964,7 @@ flashcache_write_hit(struct cache_c *dmc, struct bio *bio, int index)
 			job->action = WRITECACHE;
 			if (dmc->cache_mode == FLASHCACHE_WRITE_BACK) {
 				/* Write data to the cache */
-				dm_io_async_bvec(1, &job->job_io_regions.cache, WRITE, 
+				dm_io_async_bvec(1, &job->job_io_regions.cache, WRITE,
 						 bio,
 						 flashcache_io_callback, job);
 				flashcache_clean_set(dmc, index / dmc->assoc, 0);
@@ -1963,15 +1972,15 @@ flashcache_write_hit(struct cache_c *dmc, struct bio *bio, int index)
 				VERIFY(dmc->cache_mode == FLASHCACHE_WRITE_THROUGH);
 				/* Write data to both disk and cache */
 				dmc->flashcache_stats.disk_writes++;
-				dm_io_async_bvec(2, 
+				dm_io_async_bvec(2,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
-						 (struct io_region *)&job->job_io_regions, 
+						 (struct io_region *)&job->job_io_regions,
 #else
-						 (struct dm_io_region *)&job->job_io_regions, 
+						 (struct dm_io_region *)&job->job_io_regions,
 #endif
-						 WRITE, 
+						 WRITE,
 						 bio,
-						 flashcache_io_callback, job);				
+						 flashcache_io_callback, job);
 			}
 		}
 	} else {
@@ -1998,13 +2007,13 @@ flashcache_write(struct cache_c *dmc, struct bio *bio)
 	int res;
 	struct cacheblock *cacheblk;
 	int queued;
-	
+
 	flashcache_setlocks_multiget(dmc, bio);
 	res = flashcache_lookup(dmc, bio, &index);
 	if (res != -1) {
 		/* Cache Hit */
-		cacheblk = &dmc->cache[index];		
-		if ((cacheblk->cache_state & VALID) && 
+		cacheblk = &dmc->cache[index];
+		if ((cacheblk->cache_state & VALID) &&
 		    (cacheblk->dbn == bio->bi_sector)) {
 			/* Cache Hit */
 			flashcache_write_hit(dmc, bio, index);
@@ -2015,8 +2024,8 @@ flashcache_write(struct cache_c *dmc, struct bio *bio)
 		return;
 	}
 	/*
-	 * No room in the set. We cannot write to the cache and have to 
-	 * send the request to disk. Before we do that, we must check 
+	 * No room in the set. We cannot write to the cache and have to
+	 * send the request to disk. Before we do that, we must check
 	 * for potential invalidations !
 	 */
 	queued = flashcache_inval_blocks(dmc, bio);
@@ -2074,7 +2083,7 @@ flashcache_map(struct dm_target *ti, struct bio *bio)
 	int queued;
 	int uncacheable;
 	unsigned long flags;
-	
+
 	if (sectors <= 32)
 		size_hist[sectors]++;
 
@@ -2093,16 +2102,16 @@ flashcache_map(struct dm_target *ti, struct bio *bio)
 		dmc->flashcache_stats.writes++;
 
 	spin_lock_irqsave(&dmc->ioctl_lock, flags);
-	if (unlikely(dmc->sysctl_pid_do_expiry && 
+	if (unlikely(dmc->sysctl_pid_do_expiry &&
 		     (dmc->whitelist_head || dmc->blacklist_head)))
 		flashcache_pid_expiry_all_locked(dmc);
 	uncacheable = (unlikely(dmc->bypass_cache) ||
 		       (to_sector(bio->bi_size) != dmc->block_size) ||
-		       /* 
-			* If the op is a READ, we serve it out of cache whenever possible, 
-			* regardless of cacheablity 
+		       /*
+			* If the op is a READ, we serve it out of cache whenever possible,
+			* regardless of cacheablity
 			*/
-		       (bio_data_dir(bio) == WRITE && 
+		       (bio_data_dir(bio) == WRITE &&
 			((dmc->cache_mode == FLASHCACHE_WRITE_AROUND) ||
 			 flashcache_uncacheable(dmc, bio))));
 	spin_unlock_irqrestore(&dmc->ioctl_lock, flags);
@@ -2127,7 +2136,7 @@ flashcache_map(struct dm_target *ti, struct bio *bio)
 }
 
 /* Block sync support functions */
-static void 
+static void
 flashcache_kcopyd_callback_sync(int read_err, unsigned int write_err, void *context)
 {
 	struct kcached_job *job = (struct kcached_job *)context;
@@ -2149,7 +2158,7 @@ flashcache_kcopyd_callback_sync(int read_err, unsigned int write_err, void *cont
 		if (write_err)
 			write_err = -EIO;
 		/* Disk write failed. We can not purge this cache from flash */
-		DMERR("flashcache: Disk writeback failed ! read error %d write error %d block %lu", 
+		DMERR("flashcache: Disk writeback failed ! read error %d write error %d block %lu",
 		      -read_err, -write_err, job->job_io_regions.disk.sector);
 		VERIFY(cache_set->clean_inprog > 0);
 		VERIFY(atomic_read(&dmc->clean_inprog) > 0);
@@ -2161,7 +2170,7 @@ flashcache_kcopyd_callback_sync(int read_err, unsigned int write_err, void *cont
 			dmc->flashcache_errors.ssd_read_errors++;
 			job->error = read_err;
 		} else {
-			dmc->flashcache_errors.disk_write_errors++;			
+			dmc->flashcache_errors.disk_write_errors++;
 			job->error = write_err;
 		}
 		flashcache_do_pending(job);
@@ -2178,7 +2187,7 @@ flashcache_dirty_writeback_sync(struct cache_c *dmc, int index)
 	int device_removal = 0;
 	int set = index / dmc->assoc;
 	struct cache_set *cache_set = &dmc->cache_sets[set];
-	
+
 	VERIFY((cacheblk->cache_state & FALLOW_DOCLEAN) == 0);
 	DPRINTK("flashcache_dirty_writeback_sync: Index %d", index);
 	spin_lock_irq(&cache_set->set_spin_lock);
@@ -2192,7 +2201,7 @@ flashcache_dirty_writeback_sync(struct cache_c *dmc, int index)
 	 * If the device is being (fast) removed, do not kick off any more cleanings.
 	 */
 	if (unlikely(atomic_read(&dmc->remove_in_prog) == FAST_REMOVE)) {
-		DMERR("flashcache: Dirty Writeback (for set cleaning) aborted for device removal, block %lu", 
+		DMERR("flashcache: Dirty Writeback (for set cleaning) aborted for device removal, block %lu",
 		      cacheblk->dbn);
 		if (job)
 			flashcache_free_cache_job(job);
@@ -2207,7 +2216,7 @@ flashcache_dirty_writeback_sync(struct cache_c *dmc, int index)
 		cacheblk->cache_state &= ~(BLOCK_IO_INPROG);
 		spin_unlock_irq(&cache_set->set_spin_lock);
 		if (device_removal == 0)
-			DMERR("flashcache: Dirty Writeback (for sync) failed ! Can't allocate memory, block %lu", 
+			DMERR("flashcache: Dirty Writeback (for sync) failed ! Can't allocate memory, block %lu",
 			      cacheblk->dbn);
 	} else {
 		job->bio = NULL;
@@ -2216,23 +2225,23 @@ flashcache_dirty_writeback_sync(struct cache_c *dmc, int index)
 		dmc->flashcache_stats.ssd_reads++;
 		dmc->flashcache_stats.disk_writes++;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
-		kcopyd_copy(flashcache_kcp_client, &job->job_io_regions.cache, 1, &job->job_io_regions.disk, 0, 
+		kcopyd_copy(flashcache_kcp_client, &job->job_io_regions.cache, 1, &job->job_io_regions.disk, 0,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,25)
 			    flashcache_kcopyd_callback_sync,
 #else
-			    (kcopyd_notify_fn) flashcache_kcopyd_callback_sync, 
+			    (kcopyd_notify_fn) flashcache_kcopyd_callback_sync,
 #endif
 			    job);
 #else
-		dm_kcopyd_copy(flashcache_kcp_client, &job->job_io_regions.cache, 1, &job->job_io_regions.disk, 0, 
-			       (dm_kcopyd_notify_fn)flashcache_kcopyd_callback_sync, 
+		dm_kcopyd_copy(flashcache_kcp_client, &job->job_io_regions.cache, 1, &job->job_io_regions.disk, 0,
+			       (dm_kcopyd_notify_fn)flashcache_kcopyd_callback_sync,
 			       (void *)job);
 #endif
 	}
 }
 
-/* 
- * Sync all dirty blocks. We pick off dirty blocks, sort them, merge them with 
+/*
+ * Sync all dirty blocks. We pick off dirty blocks, sort them, merge them with
  * any contigous blocks we can within the set and fire off the writes.
  */
 void
@@ -2246,13 +2255,13 @@ flashcache_sync_blocks(struct cache_c *dmc)
 	struct cacheblock *cacheblk;
 	struct cache_set *cache_set;
 
-	/* 
-	 * If a (fast) removal of this device is in progress, don't kick off 
+	/*
+	 * If a (fast) removal of this device is in progress, don't kick off
 	 * any more cleanings. This isn't sufficient though. We still need to
 	 * stop cleanings inside flashcache_dirty_writeback_sync() because we could
 	 * have started a device remove after tested this here.
 	 */
-	if ((atomic_read(&dmc->remove_in_prog) == FAST_REMOVE) || 
+	if ((atomic_read(&dmc->remove_in_prog) == FAST_REMOVE) ||
 	    dmc->sysctl_stop_sync)
 		return;
 	if (atomic_read(&dmc->nr_dirty) == 0 || !(atomic_read(&dmc->sync_index) < dmc->size))
@@ -2268,7 +2277,7 @@ flashcache_sync_blocks(struct cache_c *dmc)
 	set = index / dmc->assoc;
 	cache_set = &dmc->cache_sets[set];
 	spin_lock_irq(&cache_set->set_spin_lock);
-	while (index < dmc->size && 
+	while (index < dmc->size &&
 	       (nr_writes + atomic_read(&dmc->clean_inprog)) < dmc->max_clean_ios_total) {
 		VERIFY(nr_writes <= dmc->assoc);
 		if ((index % dmc->assoc) == 0) {
@@ -2276,7 +2285,7 @@ flashcache_sync_blocks(struct cache_c *dmc)
 				/*
 				 * Crossing a set, sort/merge all the IOs collected so
 				 * far and issue the writes.
-				 */					
+				 */
 				flashcache_merge_writes(dmc, writes_list, set_dirty_list, &nr_writes, set);
 				spin_unlock_irq(&cache_set->set_spin_lock);
 				for (i = 0 ; i < nr_writes ; i++)
@@ -2286,7 +2295,7 @@ flashcache_sync_blocks(struct cache_c *dmc)
 				spin_unlock_irq(&cache_set->set_spin_lock);
 			set = index / dmc->assoc;
 			cache_set = &dmc->cache_sets[set];
-			spin_lock_irq(&cache_set->set_spin_lock);			
+			spin_lock_irq(&cache_set->set_spin_lock);
 		}
 		cacheblk = &dmc->cache[index];
 		if ((cacheblk->cache_state & (DIRTY | BLOCK_IO_INPROG)) == DIRTY) {
@@ -2324,27 +2333,27 @@ flashcache_sync_all(struct cache_c *dmc)
  * We handle uncached IOs ourselves to deal with the problem of out of ordered
  * IOs corrupting the cache. Consider the case where we get 2 concurent IOs
  * for the same block Write-Read (or a Write-Write). Consider the case where
- * the first Write is uncacheable and the second IO is cacheable. If the 
+ * the first Write is uncacheable and the second IO is cacheable. If the
  * 2 IOs are out-of-ordered below flashcache, then we will cache inconsistent
  * data in flashcache (persistently).
- * 
+ *
  * We do invalidations before launching uncacheable IOs to disk. But in case
  * of out of ordering the invalidations before launching the IOs does not help.
  * We need to invalidate after the IO completes.
- * 
- * Doing invalidations after the completion of an uncacheable IO will cause 
- * any overlapping dirty blocks in the cache to be written out and the IO 
- * relaunched. If the overlapping blocks are busy, the IO is relaunched to 
+ *
+ * Doing invalidations after the completion of an uncacheable IO will cause
+ * any overlapping dirty blocks in the cache to be written out and the IO
+ * relaunched. If the overlapping blocks are busy, the IO is relaunched to
  * disk also (post invalidation). In these 2 cases, we will end up sending
  * 2 disk IOs for the block. But this is a rare case.
- * 
+ *
  * When 2 IOs for the same block are sent down (by un co-operating processes)
  * the storage stack is allowed to re-order the IOs at will. So the applications
  * cannot expect any ordering at all.
- * 
+ *
  * What we try to avoid here is inconsistencies between disk and the ssd cache.
  */
-void 
+void
 flashcache_uncached_io_complete(struct kcached_job *job)
 {
 	struct cache_c *dmc = job->dmc;
@@ -2353,8 +2362,8 @@ flashcache_uncached_io_complete(struct kcached_job *job)
 	struct bio *bio = job->bio;
 
 	if (unlikely(error)) {
-		DMERR("flashcache uncached disk IO error: io error %d block %lu R/w %s", 
-		      error, job->job_io_regions.disk.sector, 
+		DMERR("flashcache uncached disk IO error: io error %d block %lu R/w %s",
+		      error, job->job_io_regions.disk.sector,
 		      (bio_data_dir(bio) == WRITE) ? "WRITE" : "READ");
 		if (bio_data_dir(bio) == WRITE)
 			dmc->flashcache_errors.disk_write_errors++;
@@ -2367,9 +2376,9 @@ flashcache_uncached_io_complete(struct kcached_job *job)
 	if (queued) {
 		if (unlikely(queued < 0))
 			flashcache_bio_endio(bio, -EIO, dmc, NULL);
-		/* 
+		/*
 		 * The IO will be re-executed.
-		 * The do_pending logic will re-launch the 
+		 * The do_pending logic will re-launch the
 		 * disk IO post-invalidation calling start_uncached_io.
 		 * This should be a rare occurrence.
 		 */
@@ -2382,7 +2391,7 @@ flashcache_uncached_io_complete(struct kcached_job *job)
 		wake_up(&dmc->destroyq);
 }
 
-static void 
+static void
 flashcache_uncached_io_callback(unsigned long error, void *context)
 {
 	struct kcached_job *job = (struct kcached_job *) context;
@@ -2401,7 +2410,7 @@ flashcache_start_uncached_io(struct cache_c *dmc, struct bio *bio)
 {
 	int is_write = (bio_data_dir(bio) == WRITE);
 	struct kcached_job *job;
-	
+
 	if (is_write) {
 		dmc->flashcache_stats.uncached_writes++;
 		dmc->flashcache_stats.disk_writes++;
@@ -2416,7 +2425,7 @@ flashcache_start_uncached_io(struct cache_c *dmc, struct bio *bio)
 	}
 	atomic_inc(&dmc->nr_jobs);
 	dm_io_async_bvec(1, &job->job_io_regions.disk,
-			 ((is_write) ? WRITE : READ), 
+			 ((is_write) ? WRITE : READ),
 			 bio,
 			 flashcache_uncached_io_callback, job);
 }

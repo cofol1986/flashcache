@@ -7,7 +7,7 @@
 # modified:
 #        2012-01-10 NinGoo version 0.2 add --nocolor option
 #        2012-01-11 NinGoo version 0.3 parse /proc/../flashcache_stats instead of dmsetup status
-# 
+#
 #####################################################################################
 use POSIX qw(strftime);
 use strict;
@@ -57,7 +57,7 @@ while(1){
 
   # calculate status per second
   foreach (keys(%status)){
-    $result{$_} = ($status{$_} - $status_old{$_}) / ($interval + 0.00001); 
+    $result{$_} = ($status{$_} - $status_old{$_}) / ($interval + 0.00001);
   }
   # calculate hit percent
   $result{read_hit_percent} = sprintf "%d", ($result{read_hits} * 100) / ($result{reads} + 0.0001);
@@ -70,33 +70,33 @@ while(1){
   print RESET();
 
   $result{reads} > 10000 ? print RED() : print WHITE();
-  printf "%7d ", $result{reads} and print RESET();
+  printf "%7.0f ", $result{reads} and print RESET();
   $result{writes} > 10000 ? print RED() : print WHITE();
-  printf "%7d ", $result{writes} and print RESET();
+  printf "%7.0f ", $result{writes} and print RESET();
 
   $result{disk_reads} > 1000 ? print RED() : print GREEN();
-  printf "%7d ", $result{disk_reads} and print RESET();
+  printf "%7.0f ", $result{disk_reads} and print RESET();
   $result{disk_writes} > 1000 ? print RED() : print GREEN();
-  printf "%7d ", $result{disk_writes} and print RESET();
+  printf "%7.0f ", $result{disk_writes} and print RESET();
 
   $result{ssd_reads} > 10000 ? print RED() : print WHITE();
-  printf "%7d ", $result{ssd_reads} and print RESET();
+  printf "%7.0f ", $result{ssd_reads} and print RESET();
   $result{ssd_writes} > 10000 ? print RED() : print WHITE();
-  printf "%7d ", $result{ssd_writes} and print RESET();
+  printf "%7.0f ", $result{ssd_writes} and print RESET();
 
   $result{uncached_reads} > 100 ? print RED() : print GREEN();
-  printf "%7d ", $result{uncached_reads} and print RESET();
+  printf "%7.0f ", $result{uncached_reads} and print RESET();
   $result{uncached_writes} > 100 ? print RED() : print GREEN();
-  printf "%7d ", $result{uncached_writes} and print RESET();
+  printf "%7.0f ", $result{uncached_writes} and print RESET();
 
   $result{metadata_ssd_writes} > 100 ? print RED() : print WHITE();
-  printf "%7d ", $result{metadata_ssd_writes} and print RESET();
+  printf "%7.0f ", $result{metadata_ssd_writes} and print RESET();
   $result{cleanings} > 100 ? print RED() : print WHITE();
-  printf "%7d ", $result{cleanings} and print RESET();
+  printf "%7.0f ", $result{cleanings} and print RESET();
   $result{replacement} > 100 ? print RED() : print WHITE();
-  printf "%7d ", $result{replacement} and print RESET();
+  printf "%7.0f ", $result{replacement} and print RESET();
   $result{write_replacement} > 100 ? print RED() : print WHITE();
-  printf "%7d ", $result{write_replacement} and print RESET();
+  printf "%7.0f ", $result{write_replacement} and print RESET();
 
   $result{read_hit_percent} < 90 ? print RED() : print GREEN();
   printf "%6s ", $result{read_hit_percent}."|".$hit{read_hit_percent} and print RESET();
@@ -252,7 +252,7 @@ sub get_dmsetup_table{
       if($line =~ /cache mode/){ # for new version of flashcache, get cache mode
         $line =~ m/cache mode\((\w+)/;
         $dmsetup_table{cache_mode} = $1;
-      } 
+      }
       #$line =~ m/(\/\w+\/\w+).*\((\/\w+\/\w+)/; # bugfix for Issue #1 of https://github.com/NinGoo/flashstat
       $line =~ m/(\/[^\s]{1,})\).*\((\/[^\s]{1,})\)/;
       $dmsetup_table{ssd_dev} = $1;
@@ -308,10 +308,10 @@ sub get_current_time{
 ###############################################################
 sub get_options{
   GetOptions(\%opt,
-                    'h|help',        
-                    'i|interval=i',     
-                    'c|count=i',         
-                    'd|device=s',         
+                    'h|help',
+                    'i|interval=i',
+                    'c|count=i',
+                    'd|device=s',
                     'n|nocolor',
                   );
 
@@ -347,9 +347,9 @@ Version  : 0.3
 Usage : flashstat [options]
 Command line options :
 
-   -h,--help           Print Help Info. 
-   -i,--interval       Time(second) Interval.  
-   -C,--count          Times. 
+   -h,--help           Print Help Info.
+   -i,--interval       Time(second) Interval.
+   -C,--count          Times.
    -d,--device         Flashcache device.
    -n,--nocolor        No color mode.
 EOF
@@ -382,7 +382,7 @@ sub print_header{
     print "\n";
     printf "%20s: %10d", "cache_all", $sysctl{cache_all} if(defined($sysctl{cache_all}));
     printf "%20s: %10s", " reclaim_policy", $sysctl{reclaim_policy} if(defined($sysctl{reclaim_policy}));
-    printf "%20s: %10d", " dirty_thresh_pct", $sysctl{dirty_thresh_pct} if(defined($sysctl{dirty_thresh_pct}));  
+    printf "%20s: %10d", " dirty_thresh_pct", $sysctl{dirty_thresh_pct} if(defined($sysctl{dirty_thresh_pct}));
     print "\n";
     printf "%20s: %10d", "max_clean_ios_set", $sysctl{max_clean_ios_set} if(defined($sysctl{max_clean_ios_set}));
     printf "%20s: %10d", " max_clean_ios_total", $sysctl{max_clean_ios_total} if(defined($sysctl{max_clean_ios_total}));
