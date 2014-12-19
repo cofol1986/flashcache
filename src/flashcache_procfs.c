@@ -223,6 +223,37 @@ flashcache_lru_hot_pct_sysctl(ctl_table *table, int write,
 	return 0;
 }
 
+static int
+flashcache_dbn_check_sysctl(ctl_table *table, int write,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32)
+			       struct file *file,
+#endif
+			       void __user *buffer,
+			       size_t *length, loff_t *ppos)
+{
+	struct cache_c *dmc = (struct cache_c *)table->extra1;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32)
+        proc_dointvec(table, write, file, buffer, length, ppos);
+#else
+        proc_dointvec(table, write, buffer, length, ppos);
+#endif
+    sector_t dbn = (sector_t)dmc->sysctl_dbn_check;
+    int index;
+    unsigned long set_number = hash_block(dmc, dbn);
+    printk(KERN_ALERT "dbn:%lu\n", dbn);
+	if (write)
+    {
+        index = flashcache_hash_lookup(dmc, set_number, dbn);
+        if(index == -1)
+            dmc->sysctl_dbn_check = 0;
+        else
+            dmc->sysctl_dbn_check = 1;
+    }
+    printk(KERN_ALERT "index:%d dbn_check:%d\n", index, dmc->sysctl_dbn_check);
+	return 0;
+}
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 #define CTL_UNNUMBERED			-2
 #endif
@@ -232,7 +263,7 @@ flashcache_lru_hot_pct_sysctl(ctl_table *table, int write,
  * entries - zero padded at the end ! Therefore the NUM_*_SYSCTLS
  * is 1 more than then number of sysctls.
  */
-#define FLASHCACHE_NUM_WRITEBACK_SYSCTLS	23
+#define FLASHCACHE_NUM_WRITEBACK_SYSCTLS	24
 
 static struct flashcache_writeback_sysctl_table {
 	struct ctl_table_header *sysctl_header;
@@ -464,6 +495,18 @@ static struct flashcache_writeback_sysctl_table {
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= &proc_dointvec,
+		},
+		{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)
+			.ctl_name	= CTL_UNNUMBERED,
+#endif
+			.procname	= "dbn_check",
+			.maxlen		= sizeof(unsigned int),
+			.mode		= 0644,
+			.proc_handler	= &flashcache_dbn_check_sysctl,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)
+			.strategy	= &sysctl_intvec,
+#endif
 		},
 	},
 	.dev = {
@@ -714,6 +757,8 @@ flashcache_find_sysctl_data(struct cache_c *dmc, ctl_table *vars)
 		return &dmc->sysctl_lru_hot_pct;
 	else if (strcmp(vars->procname, "new_style_write_merge") == 0)
 		return &dmc->sysctl_new_style_write_merge;
+	else if (strcmp(vars->procname, "dbn_check") == 0)
+		return &dmc->sysctl_dbn_check;
 	printk(KERN_ERR "flashcache_find_sysctl_data: Unknown sysctl %s\n", vars->procname);
 	panic("flashcache_find_sysctl_data: Unknown sysctl %s\n", vars->procname);
 	return NULL;

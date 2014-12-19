@@ -588,7 +588,7 @@ flashcache_do_io(struct kcached_job *job)
 /*
  * Map a block from the source device to a block in the cache device.
  */
-static unsigned long
+unsigned long
 hash_block(struct cache_c *dmc, sector_t dbn)
 {
 	unsigned long set_number, value;

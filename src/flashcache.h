@@ -391,6 +391,7 @@ struct cache_c {
 	int sysctl_lru_hot_pct;
 	int sysctl_lru_promote_thresh;
 	int sysctl_new_style_write_merge;
+	unsigned int sysctl_dbn_check;
 
 	/* Sequential I/O spotter */
 	struct sequential_io	seq_recent_ios[SEQUENTIAL_TRACKER_QUEUE_DEPTH];
@@ -740,6 +741,7 @@ int flashcache_diskclean_alloc(struct cache_c *dmc,
 			       struct dbn_index_pair **buf1, struct dbn_index_pair **buf2);
 void flashcache_diskclean_free(struct cache_c *dmc, struct dbn_index_pair *buf1,
 			       struct dbn_index_pair *buf2);
+unsigned long hash_block(struct cache_c *dmc, sector_t dbn);
 
 #endif /* __KERNEL__ */
 
