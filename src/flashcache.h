@@ -47,7 +47,7 @@
 #define bi_idx		bi_iter.bi_idx
 #endif
 
-#define DMC_DEBUG 0
+#define DMC_DEBUG 1
 #define DMC_DEBUG_LITE 0
 
 #define DM_MSG_PREFIX "flashcache"
@@ -392,6 +392,7 @@ struct cache_c {
 	int sysctl_lru_promote_thresh;
 	int sysctl_new_style_write_merge;
 	unsigned int sysctl_dbn_check;
+	unsigned int sysctl_warmup;/* in kb */
 
 	/* Sequential I/O spotter */
 	struct sequential_io	seq_recent_ios[SEQUENTIAL_TRACKER_QUEUE_DEPTH];
