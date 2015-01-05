@@ -1,10 +1,10 @@
 /*
  * Copyright (c) 2010, Facebook, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * Redistributions of source code must retain the above copyright notice,
  * this list of conditions and the following disclaimer.
  * Redistributions in binary form must reproduce the above copyright notice,
@@ -13,7 +13,7 @@
  * Neither the name Facebook nor the names of its contributors may be used to
  * endorse or promote products derived from this software without specific
  * prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -68,12 +68,12 @@ get_block_size(char *s)
 {
 	sector_t size;
 	char *c;
-	
+
 	size = strtoll(s, NULL, 0);
 	for (c = s; isdigit(*c); c++)
 		;
 	switch (*c) {
-		case '\0': 
+		case '\0':
 			break;
 		case 'k':
 			size = (size * 1024) / 512;
@@ -94,12 +94,12 @@ get_cache_size(char *s)
 {
 	sector_t size;
 	char *c;
-	
+
 	size = strtoll(s, NULL, 0);
 	for (c = s; isdigit (*c); c++)
 		;
 	switch (*c) {
-		case '\0': 
+		case '\0':
 			break;
 		case 'k':
 			size = (size * 1024) / 512;
@@ -108,12 +108,12 @@ get_cache_size(char *s)
 		case 'M':
 			size = (size * 1024 * 1024) / 512;
 			break;
-		case 'g': 
-		case 'G': 
+		case 'g':
+		case 'G':
 			size = (size * 1024 * 1024 * 1024) / 512;
 			break;
-		case 't': 
-		case 'T': 
+		case 't':
+		case 'T':
 			/* Cache size in terabytes?  You lucky people! */
 			size = (size * 1024 * 1024 * 1024 * 1024) / 512;
 			break;
@@ -124,17 +124,17 @@ get_cache_size(char *s)
 	return size;
 }
 
-static int 
+static int
 module_loaded(void)
 {
 	FILE *fp;
 	char line[8192];
 	int found = 0;
-	
+
 	fp = fopen("/proc/modules", "ro");
 	while (fgets(line, 8190, fp)) {
 		char *s;
-		
+
 		s = strtok(line, " ");
 		if (!strcmp(s, "flashcache")) {
 			found = 1;
@@ -176,7 +176,7 @@ load_module(void)
 	fclose(fp);
 }
 
-static void 
+static void
 check_sure(void)
 {
 	char input;
@@ -206,7 +206,7 @@ main(int argc, char **argv)
 	int ret;
 	int cache_mode = -1;
 	char *cache_mode_str;
-	
+
 	pname = argv[0];
 	while ((c = getopt(argc, argv, "fs:b:d:m:va:p:")) != -1) {
 		switch (c) {
@@ -229,7 +229,7 @@ main(int argc, char **argv)
                         break;
 		case 'v':
 			verbose = 1;
-                        break;			
+                        break;
 		case 'f':
 			force = 1;
                         break;
@@ -246,7 +246,7 @@ main(int argc, char **argv)
 				cache_mode_str = "WRITE_AROUND";
 			} else
 				usage(pname);
-                        break;			
+                        break;
 		case '?':
 			usage(pname);
 		}
@@ -266,13 +266,13 @@ main(int argc, char **argv)
 	if (optind == argc)
 		usage(pname);
 	disk_devname = argv[optind];
-	printf("cachedev %s, ssd_devname %s, disk_devname %s cache mode %s\n", 
+	printf("cachedev %s, ssd_devname %s, disk_devname %s cache mode %s\n",
 	       cachedev, ssd_devname, disk_devname, cache_mode_str);
 	if (cache_mode == FLASHCACHE_WRITE_BACK)
-		printf("block_size %lu, md_block_size %lu, cache_size %lu\n", 
+		printf("block_size %lu, md_block_size %lu, cache_size %lu\n",
 		       block_size, md_block_size, cache_size);
 	else
-		printf("block_size %lu, cache_size %lu\n", 
+		printf("block_size %lu, cache_size %lu\n",
 		       block_size, cache_size);
 	cache_fd = open(ssd_devname, O_RDONLY);
 	if (cache_fd < 0) {
@@ -281,51 +281,51 @@ main(int argc, char **argv)
 	}
         lseek(cache_fd, 0, SEEK_SET);
 	if (read(cache_fd, buf, 512) < 0) {
-		fprintf(stderr, "Cannot read Flashcache superblock %s\n", 
+		fprintf(stderr, "Cannot read Flashcache superblock %s\n",
 			ssd_devname);
-		exit(1);		
+		exit(1);
 	}
 	if (sb->cache_sb_state == CACHE_MD_STATE_DIRTY ||
 	    sb->cache_sb_state == CACHE_MD_STATE_CLEAN ||
 	    sb->cache_sb_state == CACHE_MD_STATE_FASTCLEAN ||
 	    sb->cache_sb_state == CACHE_MD_STATE_UNSTABLE) {
-		fprintf(stderr, "%s: Valid Flashcache already exists on %s\n", 
+		fprintf(stderr, "%s: Valid Flashcache already exists on %s\n",
 			pname, ssd_devname);
-		fprintf(stderr, "%s: Use flashcache_destroy first and then create again %s\n", 
+		fprintf(stderr, "%s: Use flashcache_destroy first and then create again %s\n",
 			pname, ssd_devname);
 		exit(1);
 	}
 	disk_fd = open(disk_devname, O_RDONLY);
 	if (disk_fd < 0) {
-		fprintf(stderr, "%s: Failed to open %s\n", 
+		fprintf(stderr, "%s: Failed to open %s\n",
 			pname, disk_devname);
 		exit(1);
 	}
 	if (ioctl(cache_fd, BLKGETSIZE, &cache_devsize) < 0) {
-		fprintf(stderr, "%s: Cannot get cache size %s\n", 
+		fprintf(stderr, "%s: Cannot get cache size %s\n",
 			pname, ssd_devname);
-		exit(1);		
+		exit(1);
 	}
 	if (ioctl(disk_fd, BLKGETSIZE, &disk_devsize) < 0) {
-		fprintf(stderr, "%s: Cannot get disk size %s\n", 
+		fprintf(stderr, "%s: Cannot get disk size %s\n",
 			pname, disk_devname);
-		exit(1);				
+		exit(1);
 	}
 	if (ioctl(cache_fd, BLKSSZGET, &cache_sectorsize) < 0) {
-		fprintf(stderr, "%s: Cannot get cache size %s\n", 
+		fprintf(stderr, "%s: Cannot get cache size %s\n",
 			pname, ssd_devname);
-		exit(1);		
+		exit(1);
 	}
 	if (md_block_size > 0 &&
 	    md_block_size * 512 < cache_sectorsize) {
 		fprintf(stderr, "%s: SSD device (%s) sector size (%d) cannot be larger than metadata block size (%d) !\n",
 		        pname, ssd_devname, cache_sectorsize, md_block_size * 512);
-		exit(1);				
+		exit(1);
 	}
 	if (cache_size && cache_size > cache_devsize) {
-		fprintf(stderr, "%s: Cache size is larger than ssd size %lu/%lu\n", 
+		fprintf(stderr, "%s: Cache size is larger than ssd size %lu/%lu\n",
 			pname, cache_size, cache_devsize);
-		exit(1);		
+		exit(1);
 	}
 
 	/* Remind users how much core memory it will take - not always insignificant.
@@ -333,7 +333,7 @@ main(int argc, char **argv)
          */
 	if (cache_size == 0)
 		ram_needed = (cache_devsize / block_size) * sizeof(struct cacheblock);	/* Whole device */
-	else 
+	else
 		ram_needed = (cache_size    / block_size) * sizeof(struct cacheblock);
 
 	sysinfo(&i);
@@ -346,8 +346,8 @@ main(int argc, char **argv)
 	}
 	if (disk_associativity == 0 ||
 	    disk_associativity > associativity) {
-		fprintf(stderr, "%s: Invalid Disk Associativity %ld\n",
-			pname, disk_associativity);
+		fprintf(stderr, "%s: Invalid Disk Associativity %ld, associativity is: %ld\n",
+			pname, disk_associativity, associativity);
 		exit(1);
 	}
 	if (!force && cache_size > disk_devsize) {
@@ -357,7 +357,7 @@ main(int argc, char **argv)
 	}
 	sprintf(dmsetup_cmd, "echo 0 %lu flashcache %s %s %s %d 2 %lu %lu %d %lu %lu"
 		" | dmsetup create %s",
-		disk_devsize, disk_devname, ssd_devname, cachedev, cache_mode, block_size, 
+		disk_devsize, disk_devname, ssd_devname, cachedev, cache_mode, block_size,
 		cache_size, associativity, disk_associativity, md_block_size,
 		cachedev);
 

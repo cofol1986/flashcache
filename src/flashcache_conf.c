@@ -8,7 +8,7 @@
  *  Based on DM-Cache:
  *   Copyright (C) International Business Machines Corp., 2006
  *   Author: Ming Zhao (mingzhao@ufl.edu)
- * 
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; under version 2 of the License.
@@ -98,7 +98,7 @@ flashcache_wait_schedule(void *unused)
 	return 0;
 }
 
-static int 
+static int
 flashcache_jobs_init(void)
 {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
@@ -150,7 +150,7 @@ flashcache_jobs_init(void)
 	return 0;
 }
 
-static void 
+static void
 flashcache_jobs_exit(void)
 {
 	VERIFY(flashcache_pending_empty());
@@ -168,7 +168,7 @@ flashcache_jobs_exit(void)
 	_pending_job_cache = NULL;
 }
 
-static int 
+static int
 flashcache_kcached_init(struct cache_c *dmc)
 {
 	init_waitqueue_head(&dmc->destroyq);
@@ -181,7 +181,7 @@ flashcache_kcached_init(struct cache_c *dmc)
  * Write out the metadata one sector at a time.
  * Then dump out the superblock.
  */
-static int 
+static int
 flashcache_writeback_md_store(struct cache_c *dmc)
 {
 	struct flash_cacheblock *meta_data_cacheblock, *next_ptr;
@@ -203,7 +203,7 @@ flashcache_writeback_md_store(struct cache_c *dmc)
 		DMERR("flashcache_writeback_md_store: Unable to allocate memory");
 		DMERR("flashcache_writeback_md_store: Could not write out cache metadata !");
 		return 1;
-	}	
+	}
 
 	where.bdev = dmc->cache_dev->bdev;
 	where.sector = MD_SECTORS_PER_BLOCK(dmc);
@@ -219,20 +219,20 @@ flashcache_writeback_md_store(struct cache_c *dmc)
 #ifdef FLASHCACHE_DO_CHECKSUMS
 		next_ptr->checksum = dmc->cache[i].checksum;
 #endif
-		next_ptr->cache_state = dmc->cache[i].cache_state & 
+		next_ptr->cache_state = dmc->cache[i].cache_state &
 			(INVALID | VALID | DIRTY);
 		next_ptr++;
 		slots_written++;
 		j--;
 		if (j == 0) {
-			/* 
+			/*
 			 * Filled the block, write and goto the next metadata block.
 			 */
 			if (slots_written == MD_SLOTS_PER_BLOCK(dmc) * METADATA_IO_NUM_BLOCKS(dmc)) {
 				/*
 				 * Wrote out an entire metadata IO block, write the block to the ssd.
 				 */
-				where.count = (slots_written / MD_SLOTS_PER_BLOCK(dmc)) * 
+				where.count = (slots_written / MD_SLOTS_PER_BLOCK(dmc)) *
 					MD_SECTORS_PER_BLOCK(dmc);
 				slots_written = 0;
 				sectors_written += where.count;	/* debug */
@@ -281,15 +281,15 @@ flashcache_writeback_md_store(struct cache_c *dmc)
 		DMERR("flashcache_writeback_md_store: Unable to allocate memory");
 		DMERR("flashcache_writeback_md_store: Could not write out cache metadata !");
 		return 1;
-	}	
+	}
 	memset(header, 0, MD_BLOCK_BYTES(dmc));
-	
+
 	/* Write the header out last */
 	if (write_errors == 0) {
 		if (num_dirty == 0)
 			header->cache_sb_state = CACHE_MD_STATE_CLEAN;
 		else
-			header->cache_sb_state = CACHE_MD_STATE_FASTCLEAN;			
+			header->cache_sb_state = CACHE_MD_STATE_FASTCLEAN;
 	} else
 		header->cache_sb_state = CACHE_MD_STATE_UNSTABLE;
 	header->block_size = dmc->block_size;
@@ -302,7 +302,7 @@ flashcache_writeback_md_store(struct cache_c *dmc)
 	header->cache_devsize = to_sector(dmc->cache_dev->bdev->bd_inode->i_size);
 	header->disk_devsize = to_sector(dmc->disk_dev->bdev->bd_inode->i_size);
 	header->cache_version = dmc->on_ssd_version;
-	
+
 	DPRINTK("Store metadata to disk: block size(%u), md block size(%u), cache size(%llu)" \
 	        "associativity(%u)",
 	        header->block_size, header->md_block_size, header->size,
@@ -322,28 +322,28 @@ flashcache_writeback_md_store(struct cache_c *dmc)
 	if (write_errors == 0)
 		DMINFO("Cache metadata saved to disk");
 	else {
-		DMINFO("CRITICAL : There were %d errors in saving cache metadata saved to disk", 
+		DMINFO("CRITICAL : There were %d errors in saving cache metadata saved to disk",
 		       write_errors);
 		if (num_dirty)
 			DMINFO("CRITICAL : You have likely lost %d dirty blocks", num_dirty);
 	}
 
-	DMINFO("flashcache_writeback_md_store: valid blocks = %d dirty blocks = %d md_sectors = %d\n", 
+	DMINFO("flashcache_writeback_md_store: valid blocks = %d dirty blocks = %d md_sectors = %d\n",
 	       num_valid, num_dirty, dmc->md_blocks * MD_SECTORS_PER_BLOCK(dmc));
 
 	return 0;
 }
 
-static int 
+static int
 flashcache_writethrough_create(struct cache_c *dmc)
 {
 	sector_t cache_size, dev_size;
 	sector_t order;
 	int i;
-	
-	/* 
+
+	/*
 	 * Convert size (in sectors) to blocks.
-	 * Then round size (in blocks now) down to a multiple of associativity 
+	 * Then round size (in blocks now) down to a multiple of associativity
 	 */
 	dmc->size /= dmc->block_size;
 	dmc->size = (dmc->size / dmc->assoc) * dmc->assoc;
@@ -384,7 +384,7 @@ flashcache_writethrough_create(struct cache_c *dmc)
 	return 0;
 }
 
-static int 
+static int
 flashcache_writeback_create(struct cache_c *dmc, int force)
 {
 	struct flash_cacheblock *meta_data_cacheblock, *next_ptr;
@@ -399,7 +399,7 @@ flashcache_writeback_create(struct cache_c *dmc, int force)
 	sector_t order;
 	int sectors_written = 0, sectors_expected = 0; /* debug */
 	int slots_written = 0; /* How many cache slots did we fill in this MD io block ? */
-	
+
 	header = (struct flash_superblock *)vmalloc(MD_BLOCK_BYTES(dmc));
 	if (!header) {
 		DMERR("flashcache_writeback_create: Unable to allocate sector");
@@ -423,15 +423,15 @@ flashcache_writeback_create(struct cache_c *dmc, int force)
 		DMERR("flashcache_writeback_create: Existing Cache Detected, use force to re-create");
 		return 1;
 	}
-	/* Compute the size of the metadata, including header. 
+	/* Compute the size of the metadata, including header.
 	   Note dmc->size is in raw sectors */
 	dmc->md_blocks = INDEX_TO_MD_BLOCK(dmc, dmc->size / dmc->block_size) + 1 + 1;
 	dmc->size -= dmc->md_blocks * MD_SECTORS_PER_BLOCK(dmc);	/* total sectors available for cache */
 	dmc->size /= dmc->block_size;
-	dmc->size = (dmc->size / dmc->assoc) * dmc->assoc;	
+	dmc->size = (dmc->size / dmc->assoc) * dmc->assoc;
 	/* Recompute since dmc->size was possibly trunc'ed down */
 	dmc->md_blocks = INDEX_TO_MD_BLOCK(dmc, dmc->size) + 1 + 1;
-	DMINFO("flashcache_writeback_create: md_blocks = %d, md_sectors = %d\n", 
+	DMINFO("flashcache_writeback_create: md_blocks = %d, md_sectors = %d\n",
 	       dmc->md_blocks, dmc->md_blocks * MD_SECTORS_PER_BLOCK(dmc));
 	dev_size = to_sector(dmc->cache_dev->bdev->bd_inode->i_size);
 	cache_size = dmc->md_blocks * MD_SECTORS_PER_BLOCK(dmc) + (dmc->size * dmc->block_size);
@@ -471,7 +471,7 @@ flashcache_writeback_create(struct cache_c *dmc, int force)
 		DMERR("flashcache_writeback_create: Unable to allocate memory");
 		DMERR("flashcache_writeback_create: Could not write out cache metadata !");
 		return 1;
-	}	
+	}
 	where.sector = MD_SECTORS_PER_BLOCK(dmc);
 	slots_written = 0;
 	next_ptr = meta_data_cacheblock;
@@ -481,13 +481,13 @@ flashcache_writeback_create(struct cache_c *dmc, int force)
 #ifdef FLASHCACHE_DO_CHECKSUMS
 		next_ptr->checksum = dmc->cache[i].checksum;
 #endif
-		next_ptr->cache_state = dmc->cache[i].cache_state & 
+		next_ptr->cache_state = dmc->cache[i].cache_state &
 			(INVALID | VALID | DIRTY);
 		next_ptr++;
 		slots_written++;
 		j--;
 		if (j == 0) {
-			/* 
+			/*
 			 * Filled the block, write and goto the next metadata block.
 			 */
 			if (slots_written == MD_SLOTS_PER_BLOCK(dmc) * METADATA_IO_NUM_BLOCKS(dmc)) {
@@ -497,7 +497,7 @@ flashcache_writeback_create(struct cache_c *dmc, int force)
 				where.count = (slots_written / MD_SLOTS_PER_BLOCK(dmc)) * MD_SECTORS_PER_BLOCK(dmc);
 				slots_written = 0;
 				sectors_written += where.count;	/* debug */
-				error = flashcache_dm_io_sync_vm(dmc, &where, WRITE, 
+				error = flashcache_dm_io_sync_vm(dmc, &where, WRITE,
 								 meta_data_cacheblock);
 				if (error) {
 					vfree((void *)header);
@@ -529,7 +529,7 @@ flashcache_writeback_create(struct cache_c *dmc, int force)
 			vfree(dmc->cache);
 			DMERR("flashcache_writeback_create: Could not write cache metadata block %lu error %d !",
 			      where.sector, error);
-			return 1;		
+			return 1;
 		}
 	}
 	/* Debug Tests */
@@ -556,23 +556,23 @@ flashcache_writeback_create(struct cache_c *dmc, int force)
 	dmc->on_ssd_version = header->cache_version = FLASHCACHE_VERSION;
 	where.sector = 0;
 	where.count = dmc->md_block_size;
-	
+
 	printk("flashcache-dbg: cachedev check - %s %s", header->cache_devname,
 				dmc->dm_vdevname);
-	
+
 	error = flashcache_dm_io_sync_vm(dmc, &where, WRITE, header);
 	if (error) {
 		vfree((void *)header);
 		vfree(dmc->cache);
 		DMERR("flashcache_writeback_create: Could not write cache superblock %lu error %d !",
 		      where.sector, error);
-		return 1;		
+		return 1;
 	}
 	vfree((void *)header);
 	return 0;
 }
 
-static int 
+static int
 flashcache_writeback_load(struct cache_c *dmc)
 {
 	struct flash_cacheblock *meta_data_cacheblock, *next_ptr;
@@ -591,8 +591,8 @@ flashcache_writeback_load(struct cache_c *dmc)
 	int error;
 	int sectors_read = 0, sectors_expected = 0;	/* Debug */
 
-	/* 
-	 * We don't know what the preferred block size is, just read off 
+	/*
+	 * We don't know what the preferred block size is, just read off
 	 * the default md blocksize.
 	 */
 	header = (struct flash_superblock *)vmalloc(DEFAULT_MD_BLOCK_SIZE_BYTES);
@@ -627,7 +627,7 @@ flashcache_writeback_load(struct cache_c *dmc)
 		dmc->disk_assoc_shift = ffs(dmc->disk_assoc) - 1;
 
 	dmc->on_ssd_version = header->cache_version;
-		
+
 	DPRINTK("Loaded cache conf: version(%d), block size(%u), md block size(%u), cache size(%llu), " \
 	        "associativity(%u)",
 	        header->cache_version, header->block_size, header->md_block_size, header->size,
@@ -660,7 +660,7 @@ flashcache_writeback_load(struct cache_c *dmc)
 	dmc->assoc = header->assoc;
 	dmc->assoc_shift = ffs(dmc->assoc) - 1;
 	dmc->md_blocks = INDEX_TO_MD_BLOCK(dmc, dmc->size) + 1 + 1;
-	DMINFO("flashcache_writeback_load: md_blocks = %d, md_sectors = %d, md_block_size = %d\n", 
+	DMINFO("flashcache_writeback_load: md_blocks = %d, md_sectors = %d, md_block_size = %d\n",
 	       dmc->md_blocks, dmc->md_blocks * MD_SECTORS_PER_BLOCK(dmc), dmc->md_block_size);
 	data_size = dmc->size * dmc->block_size;
 	order = dmc->size * sizeof(struct cacheblock);
@@ -668,7 +668,7 @@ flashcache_writeback_load(struct cache_c *dmc)
 	       "(capacity:%luMB, associativity:%u, block size:%u " \
 	       "sectors(%uKB))",
 	       order >> 10, sizeof(struct cacheblock), dmc->size,
-	       (dmc->md_blocks * MD_SECTORS_PER_BLOCK(dmc) + data_size) >> (20-SECTOR_SHIFT), 
+	       (dmc->md_blocks * MD_SECTORS_PER_BLOCK(dmc) + data_size) >> (20-SECTOR_SHIFT),
 	       dmc->assoc, dmc->block_size,
 	       dmc->block_size >> (10-SECTOR_SHIFT));
 	dmc->cache = (struct cacheblock *)vmalloc(order);
@@ -710,7 +710,7 @@ flashcache_writeback_load(struct cache_c *dmc)
 		for (j = 0 ; j < slots_read ; j++) {
 			/*
 			 * XXX - Now that we force each on-ssd metadata cache slot to be a ^2, where
-			 * we are guaranteed that the slots will exactly fit within a sector (and 
+			 * we are guaranteed that the slots will exactly fit within a sector (and
 			 * a metadata block), we can simplify this logic. We don't need this next test.
 			 */
 			if ((j % MD_SLOTS_PER_BLOCK(dmc)) == 0) {
@@ -719,14 +719,14 @@ flashcache_writeback_load(struct cache_c *dmc)
 					((caddr_t)meta_data_cacheblock + MD_BLOCK_BYTES(dmc) * (j / MD_SLOTS_PER_BLOCK(dmc)));
 			}
 			dmc->cache[i].nr_queued = 0;
-			/* 
+			/*
 			 * If unclean shutdown, only the DIRTY blocks are loaded.
 			 */
 			if (clean_shutdown || (next_ptr->cache_state & DIRTY)) {
 				if (next_ptr->cache_state & DIRTY)
 					dirty_loaded++;
 				dmc->cache[i].cache_state = next_ptr->cache_state;
-				VERIFY((dmc->cache[i].cache_state & (VALID | INVALID)) 
+				VERIFY((dmc->cache[i].cache_state & (VALID | INVALID))
 				       != (VALID | INVALID));
 				if (dmc->cache[i].cache_state & VALID)
 					num_valid++;
@@ -742,8 +742,8 @@ flashcache_writeback_load(struct cache_c *dmc)
 						vfree((void *)meta_data_cacheblock);
 						DMERR("flashcache_writeback_load: Could not read cache metadata block %lu error %d !",
 						      dmc->cache[i].dbn, error);
-						return 1;				
-					}						
+						return 1;
+					}
 				}
 #endif
 			} else {
@@ -769,7 +769,7 @@ flashcache_writeback_load(struct cache_c *dmc)
 	}
 	vfree((void *)meta_data_cacheblock);
 	/*
-	 * For writing the superblock out, use the preferred blocksize that 
+	 * For writing the superblock out, use the preferred blocksize that
 	 * we read from the superblock above.
 	 */
 	if (DEFAULT_MD_BLOCK_SIZE != dmc->md_block_size) {
@@ -779,8 +779,8 @@ flashcache_writeback_load(struct cache_c *dmc)
 			DMERR("flashcache_writeback_load: Unable to allocate memory");
 			return 1;
 		}
-	}	
-	/* Before we finish loading, we need to dirty the superblock and 
+	}
+	/* Before we finish loading, we need to dirty the superblock and
 	   write it out */
 	header->size = dmc->size;
 	header->block_size = dmc->block_size;
@@ -801,10 +801,10 @@ flashcache_writeback_load(struct cache_c *dmc)
 		vfree(dmc->cache);
 		DMERR("flashcache_writeback_load: Could not write cache superblock %lu error %d !",
 		      where.sector, error);
-		return 1;		
+		return 1;
 	}
 	vfree((void *)header);
-	DMINFO("flashcache_writeback_load: Cache metadata loaded from disk with %d valid %d DIRTY blocks", 
+	DMINFO("flashcache_writeback_load: Cache metadata loaded from disk with %d valid %d DIRTY blocks",
 	       num_valid, dirty_loaded);
 	return 0;
 }
@@ -818,11 +818,11 @@ flashcache_clean_all_sets(void *data)
 static void
 flashcache_clean_all_sets(struct work_struct *work)
 {
-	struct cache_c *dmc = container_of(work, struct cache_c, 
+	struct cache_c *dmc = container_of(work, struct cache_c,
 					   delayed_clean.work);
 #endif
 	int i;
-	
+
 	for (i = 0 ; i < dmc->num_sets ; i++)
 		flashcache_clean_set(dmc, i, 0);
 }
@@ -840,7 +840,7 @@ flashcache_get_dev(struct dm_target *ti, char *pth, struct dm_dev **dmd,
 #if defined(RHEL_MAJOR) && RHEL_MAJOR == 6
 	rc = dm_get_device(ti, pth,
 			   dm_table_get_mode(ti->table), dmd);
-#else 
+#else
 	rc = dm_get_device(ti, pth, 0, tilen,
 			   dm_table_get_mode(ti->table), dmd);
 #endif
@@ -863,14 +863,14 @@ flashcache_get_dev(struct dm_target *ti, char *pth, struct dm_dev **dmd,
  *  arg[7]: cache associativity
  *  arg[8]: md block size (in sectors)
  */
-int 
+int
 flashcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct cache_c *dmc;
 	sector_t i, order;
 	int r = -EINVAL;
 	int persistence = 0;
-	
+
 	if (argc < 3) {
 		ti->error = "flashcache: Need at least 3 arguments";
 		goto bad;
@@ -884,7 +884,7 @@ flashcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	dmc->tgt = ti;
-	if ((r = flashcache_get_dev(ti, argv[0], &dmc->disk_dev, 
+	if ((r = flashcache_get_dev(ti, argv[0], &dmc->disk_dev,
 				    dmc->disk_devname, ti->len))) {
 		if (r == -EBUSY)
 			ti->error = "flashcache: Disk device is busy, cannot create cache";
@@ -905,7 +905,7 @@ flashcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		ti->error = "flashcache: Virtual device name lookup failed";
 		goto bad3;
 	}
-	
+
 	r = flashcache_kcached_init(dmc);
 	if (r) {
 		ti->error = "Failed to initialize kcached";
@@ -917,15 +917,15 @@ flashcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		r = -EINVAL;
 		goto bad3;
 	}
-	if (dmc->cache_mode < FLASHCACHE_WRITE_BACK || 
+	if (dmc->cache_mode < FLASHCACHE_WRITE_BACK ||
 	    dmc->cache_mode > FLASHCACHE_WRITE_AROUND) {
 		DMERR("cache_mode = %d", dmc->cache_mode);
 		ti->error = "flashcache: Invalid cache mode";
 		r = -EINVAL;
 		goto bad3;
 	}
-	
-	/* 
+
+	/*
 	 * XXX - Persistence is totally ignored for write through and write around.
 	 * Maybe this should really be moved to the end of the param list ?
 	 */
@@ -941,7 +941,7 @@ flashcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 				ti->error = "flashcache: Invalid cache persistence";
 				r = -EINVAL;
 				goto bad3;
-			}			
+			}
 		}
 		if (persistence == CACHE_RELOAD) {
 			if (flashcache_writeback_load(dmc)) {
@@ -966,7 +966,7 @@ flashcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 			goto bad3;
 		}
 	}
-	
+
 	if (!dmc->block_size)
 		dmc->block_size = DEFAULT_BLOCK_SIZE;
 	dmc->block_shift = ffs(dmc->block_size) - 1;
@@ -980,7 +980,7 @@ flashcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 			goto bad3;
 		}
 	}
-	
+
 	if (!dmc->size)
 		dmc->size = to_sector(dmc->cache_dev->bdev->bd_inode->i_size);
 
@@ -1013,9 +1013,9 @@ flashcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		    dmc->disk_assoc > FLASHCACHE_MAX_DISK_ASSOC ||
 		    dmc->disk_assoc < FLASHCACHE_MIN_DISK_ASSOC ||
 		    dmc->size < dmc->disk_assoc ||
-		    (dmc->assoc * dmc->block_shift) < dmc->disk_assoc) {
-			printk(KERN_ERR "Invalid Disk Assoc assoc %d disk_assoc %d size %ld\n",
-			       dmc->assoc, dmc->disk_assoc, dmc->size);
+		    (dmc->assoc * dmc->block_size) < dmc->disk_assoc) {
+			printk(KERN_ERR "Invalid Disk Assoc assoc %d disk_assoc %d size %ld block_shift %ld block_size %ld\n",
+			       dmc->assoc, dmc->disk_assoc, dmc->size, dmc->block_shift, dmc->block_size);
 			ti->error = "flashcache: Invalid disk associativity";
 			r = -EINVAL;
 			goto bad3;
@@ -1037,7 +1037,7 @@ flashcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 				r = -EINVAL;
 				goto bad3;
 			}
-			if (dmc->assoc < 
+			if (dmc->assoc <
 			    (dmc->md_block_size * 512 / sizeof(struct flash_cacheblock))) {
 				ti->error = "flashcache: Please choose a smaller metadata block size or larger assoc";
 				r = -EINVAL;
@@ -1055,7 +1055,7 @@ flashcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		}
 	}
 
-	if (dmc->cache_mode == FLASHCACHE_WRITE_BACK) {	
+	if (dmc->cache_mode == FLASHCACHE_WRITE_BACK) {
 		if (persistence == CACHE_CREATE) {
 			if (flashcache_writeback_create(dmc, 0)) {
 				ti->error = "flashcache: Cache Create Failed";
@@ -1081,7 +1081,7 @@ init:
 		r = -ENOMEM;
 		vfree((void *)dmc->cache);
 		goto bad3;
-	}				
+	}
 	memset(dmc->cache_sets, 0, order);
 	for (i = 0 ; i < dmc->num_sets ; i++) {
 		dmc->cache_sets[i].set_fifo_next = i * dmc->assoc;
@@ -1094,7 +1094,7 @@ init:
 		dmc->cache_sets[i].warmlist_lru_head = FLASHCACHE_NULL;
 		spin_lock_init(&dmc->cache_sets[i].set_spin_lock);
 	}
-	
+
 	atomic_set(&dmc->hot_list_pct, FLASHCACHE_LRU_HOT_PCT_DEFAULT);
 	flashcache_reclaim_init_lru_lists(dmc);
 	flashcache_hash_init(dmc);
@@ -1104,7 +1104,7 @@ init:
 		vfree((void *)dmc->cache);
 		vfree((void *)dmc->cache_sets);
 		goto bad3;
-	}		
+	}
 
 	if (dmc->cache_mode == FLASHCACHE_WRITE_BACK) {
 		order = (dmc->md_blocks - 1) * sizeof(struct cache_md_block_head);
@@ -1116,7 +1116,7 @@ init:
 			vfree((void *)dmc->cache);
 			vfree((void *)dmc->cache_sets);
 			goto bad3;
-		}		
+		}
 
 		for (i = 0 ; i < dmc->md_blocks - 1 ; i++) {
 			dmc->md_blocks_buf[i].nr_in_prog = 0;
@@ -1168,7 +1168,7 @@ init:
 	dmc->sysctl_lru_promote_thresh = 2;
 	dmc->sysctl_new_style_write_merge = 0;
 
-	/* Sequential i/o spotting */	
+	/* Sequential i/o spotting */
 	for (i = 0; i < SEQUENTIAL_TRACKER_QUEUE_DEPTH; i++) {
 		dmc->seq_recent_ios[i].most_recent_sector = 0;
 		dmc->seq_recent_ios[i].sequential_count = 0;
@@ -1235,7 +1235,7 @@ flashcache_dtr_stats_print(struct cache_c *dmc)
 	u_int64_t  cache_pct, dirty_pct;
 	char *cache_mode;
 	int i;
-	
+
 	if (stats->reads > 0)
 		read_hit_pct = stats->read_hits * 100 / stats->reads;
 	else
@@ -1247,7 +1247,7 @@ flashcache_dtr_stats_print(struct cache_c *dmc)
 		write_hit_pct = 0;
 		dirty_write_hit_pct = 0;
 	}
-	
+
 	DMINFO("stats: \n\treads(%lu), writes(%lu)", stats->reads, stats->writes);
 
 	if (dmc->cache_mode == FLASHCACHE_WRITE_BACK) {
@@ -1259,7 +1259,7 @@ flashcache_dtr_stats_print(struct cache_c *dmc)
 		       stats->read_hits, read_hit_pct,
 		       stats->write_hits, write_hit_pct,
 		       stats->dirty_write_hits, dirty_write_hit_pct,
-		       stats->replace, stats->wr_replace, 
+		       stats->replace, stats->wr_replace,
 		       stats->wr_invalidates, stats->rd_invalidates);
 #ifdef FLASHCACHE_DO_CHECKSUMS
 		DMINFO("\tchecksum store(%ld), checksum valid(%ld), checksum invalid(%ld)\n",
@@ -1273,7 +1273,7 @@ flashcache_dtr_stats_print(struct cache_c *dmc)
 		       stats->enqueues, stats->pending_inval,
 		       stats->md_write_dirty, stats->md_write_clean,
 		       stats->md_write_batch, stats->md_ssd_writes,
-		       stats->cleanings, stats->fallow_cleanings, 
+		       stats->cleanings, stats->fallow_cleanings,
 		       stats->noroom, stats->front_merge, stats->back_merge);
 	} else if (dmc->cache_mode == FLASHCACHE_WRITE_THROUGH) {
 		DMINFO("\tread hits(%lu), read hit percent(%d)\n"	\
@@ -1341,10 +1341,10 @@ flashcache_dtr_stats_print(struct cache_c *dmc)
 	       dmc->dm_vdevname, dmc->cache_devname, dmc->disk_devname,
 	       cache_mode,
 	       dmc->size*dmc->block_size>>11, dmc->assoc,
-	       dmc->block_size>>(10-SECTOR_SHIFT), 
-	       dmc->md_block_size * 512, 
+	       dmc->block_size>>(10-SECTOR_SHIFT),
+	       dmc->md_block_size * 512,
 	       dmc->sysctl_skip_seq_thresh_kb,
-	       dmc->size, atomic_read(&dmc->cached_blocks), 
+	       dmc->size, atomic_read(&dmc->cached_blocks),
 	       (int)cache_pct, atomic_read(&dmc->nr_dirty), (int)dirty_pct);
 	DMINFO("\tnr_queued(%d)\n", atomic_read(&dmc->pending_jobs_count));
 	DMINFO("Size Hist: ");
@@ -1357,7 +1357,7 @@ flashcache_dtr_stats_print(struct cache_c *dmc)
 /*
  * Destroy the cache mapping.
  */
-void 
+void
 flashcache_dtr(struct dm_target *ti)
 {
 	struct cache_c *dmc = (struct cache_c *) ti->private;
@@ -1372,13 +1372,13 @@ flashcache_dtr(struct dm_target *ti)
 		flashcache_writeback_md_store(dmc);
 	}
 	if (!dmc->sysctl_fast_remove && atomic_read(&dmc->nr_dirty) > 0)
-		DMERR("Could not sync %d blocks to disk, cache still dirty", 
+		DMERR("Could not sync %d blocks to disk, cache still dirty",
 		      atomic_read(&dmc->nr_dirty));
-	DMINFO("cache jobs %d, pending jobs %d", atomic_read(&nr_cache_jobs), 
+	DMINFO("cache jobs %d, pending jobs %d", atomic_read(&nr_cache_jobs),
 	       atomic_read(&nr_pending_jobs));
 	for (i = 0 ; i < dmc->size ; i++)
 		nr_queued += dmc->cache[i].nr_queued;
-	DMINFO("cache queued jobs %d", nr_queued);	
+	DMINFO("cache queued jobs %d", nr_queued);
 	flashcache_dtr_stats_print(dmc);
 	flashcache_hash_destroy(dmc);
 	flashcache_diskclean_destroy(dmc);
@@ -1392,9 +1392,9 @@ flashcache_dtr(struct dm_target *ti)
 	VERIFY(dmc->num_blacklist_pids == 0);
 	dm_put_device(ti, dmc->disk_dev);
 	dm_put_device(ti, dmc->cache_dev);
-	(void)wait_on_bit_lock(&flashcache_control->synch_flags, 
+	(void)wait_on_bit_lock(&flashcache_control->synch_flags,
 			       FLASHCACHE_UPDATE_LIST,
-			       flashcache_wait_schedule, 
+			       flashcache_wait_schedule,
 			       TASK_UNINTERRUPTIBLE);
 	nodepp = &cache_list_head;
 	while (*nodepp != NULL) {
@@ -1418,7 +1418,7 @@ flashcache_status_info(struct cache_c *dmc, status_type_t type,
 	int sz = 0; /* DMEMIT */
 	struct flashcache_stats *stats = &dmc->flashcache_stats;
 
-	
+
 	if (stats->reads > 0)
 		read_hit_pct = stats->read_hits * 100 / stats->reads;
 	else
@@ -1430,7 +1430,7 @@ flashcache_status_info(struct cache_c *dmc, status_type_t type,
 		write_hit_pct = 0;
 		dirty_write_hit_pct = 0;
 	}
-	DMEMIT("stats: \n\treads(%lu), writes(%lu)\n", 
+	DMEMIT("stats: \n\treads(%lu), writes(%lu)\n",
 	       stats->reads, stats->writes);
 
 	if (dmc->cache_mode == FLASHCACHE_WRITE_BACK) {
@@ -1442,7 +1442,7 @@ flashcache_status_info(struct cache_c *dmc, status_type_t type,
 		       stats->read_hits, read_hit_pct,
 		       stats->write_hits, write_hit_pct,
 		       stats->dirty_write_hits, dirty_write_hit_pct,
-		       stats->replace, stats->wr_replace, 
+		       stats->replace, stats->wr_replace,
 		       stats->wr_invalidates, stats->rd_invalidates);
 #ifdef FLASHCACHE_DO_CHECKSUMS
 		DMEMIT("\tchecksum store(%ld), checksum valid(%ld), checksum invalid(%ld)\n",
@@ -1457,7 +1457,7 @@ flashcache_status_info(struct cache_c *dmc, status_type_t type,
 		       stats->enqueues, stats->pending_inval,
 		       stats->md_write_dirty, stats->md_write_clean,
 		       stats->md_write_batch, stats->md_ssd_writes,
-		       stats->cleanings, stats->fallow_cleanings, 
+		       stats->cleanings, stats->fallow_cleanings,
 		       stats->noroom, stats->front_merge, stats->back_merge,
 		       stats->force_clean_block);
 	} else if (dmc->cache_mode == FLASHCACHE_WRITE_THROUGH) {
@@ -1467,7 +1467,7 @@ flashcache_status_info(struct cache_c *dmc, status_type_t type,
 		       "\twrite invalidates(%lu), read invalidates(%lu)\n",
 		       stats->read_hits, read_hit_pct,
 		       stats->write_hits, write_hit_pct,
-		       stats->replace, stats->wr_replace, 
+		       stats->replace, stats->wr_replace,
 		       stats->wr_invalidates, stats->rd_invalidates);
 #ifdef FLASHCACHE_DO_CHECKSUMS
 		DMEMIT("\tchecksum store(%ld), checksum valid(%ld), checksum invalid(%ld)\n",
@@ -1482,7 +1482,7 @@ flashcache_status_info(struct cache_c *dmc, status_type_t type,
 		       "\treplacement(%lu), write replacement(%lu)\n"	\
 		       "\tinvalidates(%lu)\n",
 		       stats->read_hits, read_hit_pct,
-		       stats->replace, stats->wr_replace, 
+		       stats->replace, stats->wr_replace,
 		       stats->rd_invalidates);
 #ifdef FLASHCACHE_DO_CHECKSUMS
 		DMEMIT("\tchecksum store(%ld), checksum valid(%ld), checksum invalid(%ld)\n",
@@ -1509,12 +1509,12 @@ flashcache_status_info(struct cache_c *dmc, status_type_t type,
 	       dmc->lru_hot_blocks, dmc->lru_warm_blocks, stats->lru_promotions, stats->lru_demotions);
 	if (dmc->sysctl_io_latency_hist) {
 		int i;
-		
+
 		DMEMIT("\nIO Latency Histogram: \n");
 		for (i = 1 ; i <= IO_LATENCY_BUCKETS ; i++) {
 			DMEMIT("< %d\tusecs : %lu\n", i * IO_LATENCY_GRAN_USECS, dmc->latency_hist[i - 1]);
 		}
-		DMEMIT("> 10\tmsecs : %lu", dmc->latency_hist_10ms);		
+		DMEMIT("> 10\tmsecs : %lu", dmc->latency_hist_10ms);
 	}
 }
 
@@ -1526,7 +1526,7 @@ flashcache_status_table(struct cache_c *dmc, status_type_t type,
 	int i;
 	int sz = 0; /* DMEMIT */
 	char *cache_mode;
-	
+
 
 	if (dmc->size > 0) {
 		dirty_pct = ((u_int64_t)atomic_read(&dmc->nr_dirty) * 100) / dmc->size;
@@ -1548,7 +1548,7 @@ flashcache_status_table(struct cache_c *dmc, status_type_t type,
 	if (dmc->cache_mode == FLASHCACHE_WRITE_BACK) {
 		DMEMIT("\tcapacity(%luM), associativity(%u), data block size(%uK) metadata block size(%ub)\n",
 		       dmc->size*dmc->block_size>>11, dmc->assoc,
-		       dmc->block_size>>(10-SECTOR_SHIFT), 
+		       dmc->block_size>>(10-SECTOR_SHIFT),
 		       dmc->md_block_size * 512);
 	} else {
 		DMEMIT("\tcapacity(%luM), associativity(%u), data block size(%uK)\n",
@@ -1596,7 +1596,7 @@ flashcache_status(struct dm_target *ti, status_type_t type,
 #endif
 {
 	struct cache_c *dmc = (struct cache_c *) ti->private;
-	
+
 	switch (type) {
 	case STATUSTYPE_INFO:
 		flashcache_status_info(dmc, type, result, maxlen);
@@ -1627,7 +1627,7 @@ flashcache_sync_for_remove(struct cache_c *dmc)
 	do {
 		atomic_set(&dmc->remove_in_prog, SLOW_REMOVE); /* Stop cleaning of sets */
 		if (!dmc->sysctl_fast_remove) {
-			/* 
+			/*
 			 * Kick off cache cleaning. client_destroy will wait for cleanings
 			 * to finish.
 			 */
@@ -1639,13 +1639,13 @@ flashcache_sync_for_remove(struct cache_c *dmc)
 		} else {
 			/* Needed to abort any in-progress cleanings, leave blocks DIRTY */
 			atomic_set(&dmc->remove_in_prog, FAST_REMOVE);
-			printk(KERN_ALERT "Fast flashcache remove Skipping cleaning of %d blocks", 
+			printk(KERN_ALERT "Fast flashcache remove Skipping cleaning of %d blocks",
 			       atomic_read(&dmc->nr_dirty));
 		}
-		/* 
+		/*
 		 * We've prevented new cleanings from starting (for the fast remove case)
 		 * and we will wait for all in progress cleanings to exit.
-		 * Wait a few seconds for everything to quiesce before writing out the 
+		 * Wait a few seconds for everything to quiesce before writing out the
 		 * cache metadata.
 		 */
 		msleep(FLASHCACHE_SYNC_REMOVE_DELAY);
@@ -1656,18 +1656,18 @@ flashcache_sync_for_remove(struct cache_c *dmc)
 	} while (!dmc->sysctl_fast_remove && atomic_read(&dmc->nr_dirty) > 0);
 }
 
-static int 
+static int
 flashcache_notify_reboot(struct notifier_block *this,
 			 unsigned long code, void *x)
 {
 	struct cache_c *dmc;
 
-	(void)wait_on_bit_lock(&flashcache_control->synch_flags, 
+	(void)wait_on_bit_lock(&flashcache_control->synch_flags,
 			       FLASHCACHE_UPDATE_LIST,
-			       flashcache_wait_schedule, 
+			       flashcache_wait_schedule,
 			       TASK_UNINTERRUPTIBLE);
-	for (dmc = cache_list_head ; 
-	     dmc != NULL ; 
+	for (dmc = cache_list_head ;
+	     dmc != NULL ;
 	     dmc = dmc->next_cache) {
 		if (dmc->cache_mode == FLASHCACHE_WRITE_BACK) {
 			flashcache_sync_for_remove(dmc);
@@ -1688,7 +1688,7 @@ flashcache_notify_reboot(struct notifier_block *this,
  * any notifiers of ssd's or other block devices. Typically, devices
  * use a priority of 0.
  * XXX - If in the future we happen to use a md device as the cache
- * block device, we have a problem because md uses a priority of 
+ * block device, we have a problem because md uses a priority of
  * INT_MAX as well. But we want to run before the md's reboot notifier !
  */
 static struct notifier_block flashcache_notifier = {
@@ -1710,7 +1710,7 @@ struct dm_io_client *flashcache_io_client; /* Client memory pool*/
 /*
  * Initiate a cache target.
  */
-int __init 
+int __init
 flashcache_init(void)
 {
 	int r;
@@ -1792,7 +1792,7 @@ flashcache_init(void)
 /*
  * Destroy a cache target.
  */
-void 
+void
 flashcache_exit(void)
 {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
